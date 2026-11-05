@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GateQR — Functional Decomposition Diagram</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; margin: 24px; background: #f4f4f4; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { font-size: 12px; color: #444; margin: 0 0 16px; }
+  svg { background: #fff; border: 1px solid #000; max-width: 100%; height: auto; display: block; }
+  text { font-family: Arial, Helvetica, sans-serif; fill: #000; }
+</style>
+</head>
+<body>
+<h1>GateQR Vehicle Pass System — Functional Decomposition Diagram</h1>
+<p class="sub">System functions broken down by role: USER, ADMIN, and GUARD</p>
+<button id="dl" style="margin-bottom:16px;padding:10px 20px;font-size:14px;font-weight:700;background:#047857;color:#fff;border:0;border-radius:8px;cursor:pointer">Download as PNG image</button>
+<svg id="fdd" viewBox="0 0 2000 620" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script>
+// Renders the SVG to a hi-res PNG and downloads it.
+document.getElementById('dl').addEventListener('click', () => {
+  const svg = document.getElementById('fdd');
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width', 4000);
+  clone.setAttribute('height', 1240);
+  const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  style.textContent = 'text{font-family:Arial,Helvetica,sans-serif;fill:#000}svg{background:#fff}';
+  clone.insertBefore(style, clone.firstChild);
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = 4000; c.height = 1240;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.download = 'GateQR-Functional-Decomposition.png';
+    a.href = c.toDataURL('image/png');
+    a.click();
+  };
+  img.src = url;
+});
+</script>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('fdd');
+const el = (t, a) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); svg.appendChild(n); return n; };
+const txt = (t, x, y, o = {}) => {
+  const n = el('text', { x, y, 'font-size': o.size || 10, 'text-anchor': o.anchor || 'middle', 'font-weight': o.bold ? 'bold' : 'normal' });
+  n.textContent = t;
+  return n;
+};
+const seg = (x1, y1, x2, y2) => el('line', { x1, y1, x2, y2, stroke: '#000', 'stroke-width': 1.3 });
+const box = (x, y, w, h, rx = 6) => el('rect', { x, y, width: w, height: h, rx, fill: '#fff', stroke: '#000', 'stroke-width': 1.4 });
+const lines = (ls, x, y, lh, size, bold) => ls.forEach((l, i) => txt(l, x, y + i * lh, { size, bold }));
+
+// ---------- diagram data ----------
+const MOD_W = 130, MOD_H = 40, LEAF_W = 114, LEAF_H = 26, PITCH = 34;
+const TREE = [
+  {
+    role: 'USER', cx: 365, startX: 20,
+    modules: [
+      { t: ['MANAGE', 'PROFILE'], leaves: ['REGISTER / LOGIN', 'UPDATE PROFILE', 'UPDATE PASSWORD'] },
+      { t: ['VEHICLE', 'REGISTRATION'], leaves: ['SUBMIT VEHICLE INFO', 'UPLOAD ID (FRONT & BACK)', 'UPLOAD SELFIE WITH ID', 'UPLOAD VEHICLE PHOTOS', '(FRONT / SIDE / BACK)', 'UPLOAD PROOF OF', 'OWNERSHIP'] },
+      { t: ['MY', 'VEHICLES'], leaves: ['VIEW VEHICLE LIST', 'VIEW QR GATE PASS', 'DOWNLOAD QR PASS', 'DELETE VEHICLE'] },
+      { t: ['PAYMENT'], leaves: ['VIEW PAYMENT NOTICE', 'UPLOAD PAYMENT RECEIPT'] },
+      { t: ['NOTIFICATIONS'], leaves: ['VIEW NOTIFICATIONS', 'MARK AS READ'] },
+    ],
+  },
+  {
+    role: 'ADMIN', cx: 1135, startX: 720,
+    modules: [
+      { t: ['DASHBOARD'], leaves: ['VIEW OVERALL STATS', 'SLOT AVAILABILITY'] },
+      { t: ['REGISTRATIONS'], leaves: ['VIEW PENDING LIST', 'REVIEW DOCUMENTS', 'APPROVE / REJECT', 'SEND PAYMENT NOTICE', 'VERIFY RECEIPT'] },
+      { t: ['VEHICLE', 'MANAGEMENT'], leaves: ['LIST VEHICLES', 'SEARCH VEHICLE', 'EDIT VEHICLE', 'RENEW / REVOKE PASS'] },
+      { t: ['USER', 'MANAGEMENT'], leaves: ['LIST USERS', 'SEARCH USER', 'CREATE ACCOUNT', 'DEACTIVATE USER'] },
+      { t: ['GATE LOGS', '& REPORTS'], leaves: ['VIEW ENTRY / EXIT LOGS', 'FILTER LOGS', 'GENERATE REPORTS'] },
+      { t: ['SETTINGS'], leaves: ['CAMPUS & GATE CONFIG', 'VEHICLE SLOT LIMIT', 'VALIDITY PERIOD'] },
+    ],
+  },
+  {
+    role: 'GUARD', cx: 1765, startX: 1560,
+    modules: [
+      { t: ['SCANNER'], leaves: ['SCAN QR VIA CAMERA', 'SCAN QR FROM PHOTO', 'MANUAL PLATE ENTRY'] },
+      { t: ['GATE', 'VERIFICATION'], leaves: ['VIEW OWNER & DOCS', 'GRANT ACCESS', 'DENY ACCESS'] },
+      { t: ['VISITOR', 'PASSES'], leaves: ['ISSUE VISITOR PASS', 'VIEW ACTIVE PASSES', 'REVOKE PASS'] },
+    ],
+  },
+];
+
+// ---------- root ----------
+box(920, 22, 160, 46, 8);
+txt('GateQR', 1000, 51, { size: 18, bold: true });
+seg(1000, 68, 1000, 110);
+
+// role rail
+seg(365, 110, 1765, 110);
+
+const ROLE_Y = 140, ROLE_H = 44, RAIL2_Y = 205, MOD_Y = 230;
+
+TREE.forEach(({ role, cx, startX, modules }) => {
+  // role node
+  seg(cx, 110, cx, ROLE_Y);
+  box(cx - 55, ROLE_Y, 110, ROLE_H, 8);
+  txt(role, cx, ROLE_Y + ROLE_H / 2 + 5, { size: 14, bold: true });
+
+  // rail from role to its module centers
+  const centers = modules.map((_, i) => startX + i * 140 + MOD_W / 2);
+  seg(cx, ROLE_Y + ROLE_H, cx, RAIL2_Y);
+  seg(centers[0], RAIL2_Y, centers[centers.length - 1], RAIL2_Y);
+
+  modules.forEach((m, i) => {
+    const mx = startX + i * 140, mcx = mx + MOD_W / 2;
+    seg(mcx, RAIL2_Y, mcx, MOD_Y);
+    box(mx, MOD_Y, MOD_W, MOD_H, 8);
+    const mlh = 12, my0 = MOD_Y + MOD_H / 2 - ((m.t.length - 1) * mlh) / 2 + 4;
+    lines(m.t, mcx, my0, mlh, 9.5, true);
+
+    // leaf column: rail left of leaves, elbow stubs into each leaf
+    const leafX = mx + 16, railX = mx + 8, firstY = MOD_Y + MOD_H + 22;
+    const mids = m.leaves.map((_, j) => firstY + j * PITCH + LEAF_H / 2);
+    seg(mcx, MOD_Y + MOD_H, mcx, firstY - 8);
+    seg(railX, firstY - 8, mcx, firstY - 8);
+    seg(railX, firstY - 8, railX, mids[mids.length - 1]);
+    m.leaves.forEach((leaf, j) => {
+      const ly = firstY + j * PITCH, mid = mids[j];
+      seg(railX, mid, leafX, mid);
+      box(leafX, ly, LEAF_W, LEAF_H, 6);
+      txt(leaf, leafX + LEAF_W / 2, ly + LEAF_H / 2 + 3.5, { size: 8 });
+    });
+  });
+});
+</script>
+</body>
+</html>

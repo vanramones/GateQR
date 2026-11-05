@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GateQR — Data Flow Diagram</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; margin: 24px; background: #f4f4f4; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { font-size: 12px; color: #444; margin: 0 0 16px; }
+  svg { background: #fff; border: 1px solid #000; max-width: 100%; height: auto; display: block; }
+  text { font-family: Arial, Helvetica, sans-serif; fill: #000; }
+</style>
+</head>
+<body>
+<h1>GateQR Vehicle Pass System — Data Flow Diagram</h1>
+<p class="sub">Entities (rectangles), processes 1–8 (rounded boxes), data stores D1–D7 (open boxes)</p>
+<button id="dl" style="margin-bottom:16px;padding:10px 20px;font-size:14px;font-weight:700;background:#047857;color:#fff;border:0;border-radius:8px;cursor:pointer">Download as PNG image</button>
+<svg id="dfd" viewBox="0 0 1400 990" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script>
+// Renders the SVG to a hi-res PNG and downloads it.
+document.getElementById('dl').addEventListener('click', () => {
+  const svg = document.getElementById('dfd');
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width', 2800);
+  clone.setAttribute('height', 1980);
+  const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  style.textContent = 'text{font-family:Arial,Helvetica,sans-serif;fill:#000}svg{background:#fff}';
+  clone.insertBefore(style, clone.firstChild);
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = 2800; c.height = 1980;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.download = 'GateQR-Data-Flow-Diagram.png';
+    a.href = c.toDataURL('image/png');
+    a.click();
+  };
+  img.src = url;
+});
+</script>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('dfd');
+const el = (t, a) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); svg.appendChild(n); return n; };
+const txt = (t, x, y, o = {}) => {
+  const n = el('text', { x, y, 'font-size': o.size || 11, 'text-anchor': o.anchor || 'middle', 'font-weight': o.bold ? 'bold' : 'normal' });
+  if (o.rotate) n.setAttribute('transform', `rotate(${o.rotate} ${x} ${y})`);
+  n.textContent = t;
+  return n;
+};
+
+// Arrowhead marker
+const defs = el('defs', {});
+const marker = document.createElementNS(NS, 'marker');
+marker.setAttribute('id', 'arr');
+marker.setAttribute('viewBox', '0 0 10 10');
+marker.setAttribute('refX', '9'); marker.setAttribute('refY', '5');
+marker.setAttribute('markerWidth', '7'); marker.setAttribute('markerHeight', '7');
+marker.setAttribute('orient', 'auto-start-reverse');
+const tri = document.createElementNS(NS, 'path');
+tri.setAttribute('d', 'M0,0 L10,5 L0,10 z');
+tri.setAttribute('fill', '#000');
+marker.appendChild(tri); defs.appendChild(marker);
+
+// ---------- node kinds ----------
+const ENT_W = 110, ENT_H = 56, PROC_W = 190, PROC_H = 64, DS_W = 150, DS_H = 44;
+
+function entity(x, y, label) {
+  el('rect', { x, y, width: ENT_W, height: ENT_H, fill: '#fff', stroke: '#000', 'stroke-width': 1.6 });
+  txt(label, x + ENT_W / 2, y + ENT_H / 2 + 5, { size: 15, bold: true });
+}
+
+function proc(x, y, num, lines) {
+  el('rect', { x, y, width: PROC_W, height: PROC_H, rx: 18, fill: '#fff', stroke: '#000', 'stroke-width': 1.6 });
+  txt(num, x + 16, y + 17, { size: 12, bold: true });
+  const lh = 14, startY = y + PROC_H / 2 - ((lines.length - 1) * lh) / 2 + 4;
+  lines.forEach((l, i) => txt(l, x + PROC_W / 2, startY + i * lh, { size: 11.5, bold: true }));
+}
+
+function store(x, y, id, label) {
+  el('rect', { x, y, width: DS_W, height: DS_H, fill: '#fff', stroke: '#000', 'stroke-width': 1.6 });
+  el('line', { x1: x + 34, y1: y, x2: x + 34, y2: y + DS_H, stroke: '#000', 'stroke-width': 1.6 });
+  txt(id, x + 17, y + DS_H / 2 + 5, { size: 12, bold: true });
+  const lines = label.split('\n'), lh = 13, startY = y + DS_H / 2 - ((lines.length - 1) * lh) / 2 + 4;
+  lines.forEach((l, i) => txt(l, x + 34 + (DS_W - 34) / 2, startY + i * lh, { size: 10.5, bold: true }));
+}
+
+// ---------- edges ----------
+function edge(pts, label, lx, ly, rot) {
+  const d = 'M' + pts.map(p => p.join(',')).join(' L');
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('d', d);
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', '#000');
+  p.setAttribute('stroke-width', '1.4');
+  p.setAttribute('marker-end', 'url(#arr)');
+  svg.appendChild(p);
+  if (label) txt(label, lx, ly, { size: 10, rotate: rot || 0 });
+}
+
+// ================= ENTITIES =================
+entity(70, 300, 'USER');
+entity(1240, 150, 'ADMIN');
+entity(1240, 800, 'GUARD');
+
+// ================= PROCESSES =================
+proc(230, 60, '1', ['AUTHENTICATE', 'USER']);
+proc(230, 230, '2', ['SUBMIT VEHICLE', 'REGISTRATION']);
+proc(620, 220, '3', ['REVIEW', 'REGISTRATION']);
+proc(620, 420, '4', ['PROCESS', 'PAYMENT']);
+proc(230, 470, '5', ['ISSUE QR', 'GATE PASS']);
+proc(620, 800, '6', ['VERIFY GATE', 'ACCESS']);
+proc(960, 640, '7', ['MANAGE VISITOR', 'PASSES']);
+proc(960, 90, '8', ['MANAGE USERS', '& SETTINGS']);
+
+// ================= DATA STORES =================
+store(470, 70, 'D1', 'USER DATA');
+store(430, 330, 'D3', 'DOCUMENT\nDATA');
+store(860, 240, 'D2', 'VEHICLE\nDATA');
+store(430, 560, 'D6', 'NOTIFICATIONS\nDATA');
+store(960, 540, 'D4', 'VISITOR PASS\nDATA');
+store(860, 880, 'D5', 'GATE LOGS\nDATA');
+store(1180, 220, 'D7', 'SETTINGS\nDATA');
+
+// ================= FLOWS =================
+edge([[180,315],[205,315],[205,92],[230,92]], 'LOGIN / REGISTER', 192, 200, -90);
+edge([[420,92],[470,92]], 'ACCOUNT / PROFILE', 445, 86);
+edge([[230,110],[215,110],[215,330],[180,330]], 'SESSION', 200, 345);
+edge([[70,335],[50,335],[50,252],[230,252]], 'VEHICLE INFO + DOCS', 40, 293, -90);
+edge([[420,275],[500,275],[500,330]], 'ID + VEHICLE PHOTOS', 510, 300, -90);
+edge([[420,240],[540,240],[540,205],[930,205],[930,240]], 'REGISTRATION RECORD (PENDING)', 720, 200);
+edge([[860,258],[810,258]], 'PENDING', 835, 270);
+edge([[580,352],[715,352],[715,284]], 'DOCUMENTS', 648, 346);
+edge([[810,246],[860,246]], 'DECISION', 835, 240);
+edge([[620,270],[600,270],[600,582],[580,582]], 'STATUS NOTIFICATION', 612, 500, -90);
+edge([[620,235],[545,235],[545,212],[175,212],[175,300]], 'APPROVAL / REJECTION EMAIL', 360, 207);
+edge([[715,284],[715,420]], 'FOR PAYMENT', 723, 352, -90);
+edge([[620,452],[150,452],[150,356]], 'PAYMENT NOTICE EMAIL (P50 OR)', 385, 446);
+edge([[180,340],[190,340],[190,555],[555,555],[555,478],[620,478]], 'PAYMENT RECEIPT', 372, 550);
+edge([[620,445],[592,445],[592,352],[580,352]], 'RECEIPT FILE', 578, 398, -90);
+edge([[760,420],[760,390],[900,390],[900,284]], 'RECEIPT RECORDED', 912, 337, -90);
+edge([[935,284],[935,615],[325,615],[325,534]], 'APPROVED PASS DATA (VALID UNTIL)', 630, 632);
+edge([[230,502],[150,502],[150,356]], 'QR GATE PASS', 162, 428, -90);
+edge([[1240,828],[810,828]], 'SCANNED QR CODE', 1010, 822);
+edge([[920,284],[920,770],[715,770],[715,800]], 'VEHICLE PASS STATUS', 932, 530, -90);
+edge([[960,570],[845,570],[845,850],[810,850]], 'VISITOR PASS STATUS', 857, 705, -90);
+edge([[715,864],[715,902],[860,902]], 'ENTRY / EXIT LOG', 790, 896);
+edge([[810,844],[1240,844]], 'GRANT / DENY RESULT', 1010, 856);
+edge([[1295,800],[1295,672],[1150,672]], 'ISSUE / REVOKE', 1315, 736, -90);
+edge([[1040,640],[1040,584]], 'PASS RECORD', 1052, 612, -90);
+edge([[1100,704],[1100,730],[1185,730],[1185,820],[1240,820]], 'VISITOR QR PASS', 1143, 724);
+edge([[430,592],[105,592],[105,356]], 'IN-APP NOTIFICATIONS', 265, 586);
+edge([[1240,168],[1170,168],[1170,110],[1150,110]], 'MANAGE USERS', 1200, 177);
+edge([[960,92],[620,92]], 'MANAGE USER ACCOUNTS', 790, 86);
+edge([[1055,154],[1055,242],[1180,242]], 'SYSTEM SETTINGS', 1110, 236);
+edge([[1240,185],[715,185],[715,220]], 'REVIEW & APPROVE', 980, 180);
+edge([[1240,195],[1140,195],[1140,452],[810,452]], 'VERIFY PAYMENT', 1152, 325, -90);
+</script>
+</body>
+</html>
