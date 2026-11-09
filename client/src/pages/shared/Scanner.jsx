@@ -550,7 +550,7 @@ export default function Scanner() {
                   {res.ok ? (
                     suggested === 'entry'
                       ? <button className="btn-success flex-1 py-3 text-base" onClick={() => confirm('entry')}><LogIn className="h-5 w-5" />Log entry</button>
-                      : <button className="btn-success flex-1 py-3 text-base" onClick={() => confirm('exit')}><LogOut className="h-5 w-5" />Log exit</button>
+                      : <button className="btn-danger flex-1 py-3 text-base" onClick={() => confirm('exit')}><LogOut className="h-5 w-5" />Log exit</button>
                   ) : <button className="btn-secondary flex-1 py-3 text-base" onClick={() => setRes(null)}>Dismiss</button>}
                 </div>
                 {res.ok && last && <p className="px-5 pb-4 text-center text-xs text-slate-400">Last recorded action: {last}</p>}
