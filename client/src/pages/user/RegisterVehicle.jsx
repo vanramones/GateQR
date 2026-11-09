@@ -7,6 +7,11 @@ import { Alert, Field, PageHeader, Spinner } from '../../components/ui';
 import FileUpload from '../../components/FileUpload';
 import { cx } from '../../lib/utils';
 
+const MOTOR_BRANDS = [
+  'Honda', 'Yamaha', 'Suzuki', 'Kawasaki', 'Kymco', 'SYM', 'Rusi', 'Skygo', 'Motorstar', 'TVS', 'Bajaj', 'Keeway', 'CFMoto',
+  'Benelli', 'Royal Enfield', 'Vespa', 'Piaggio', 'Ducati', 'KTM', 'BMW Motorrad', 'Harley-Davidson', 'Triumph', 'Aprilia',
+  'Husqvarna', 'GPX', 'QJMotor', 'Zontes', 'Kiden', 'Racal', 'Daelim', 'Moto Guzzi', 'Indian',
+];
 const EMPTY = { type: 'Motorcycle', plate: '', make: '', model: '', color: '', year: '', orcrNo: '', licenseNo: '', licenseExpiry: '', idFront: null, idBack: null, selfie: null, vehicleFront: null, vehicleSide: null, vehicleBack: null, proofDoc: null };
 
 const STEPS = [
@@ -33,6 +38,7 @@ export default function RegisterVehicle() {
   const [done, setDone] = useState(false);
   const [slots, setSlots] = useState(null);
   const [mine, setMine] = useState(null);
+  const [customMake, setCustomMake] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   useEffect(() => {
@@ -162,7 +168,15 @@ export default function RegisterVehicle() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Vehicle type"><select className="input" value={f.type} onChange={set('type')}>{VEHICLE_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
               <Field label="Plate number" error={errs.plate}><input className="input uppercase" placeholder="ABC 1234" value={f.plate} onChange={set('plate')} /></Field>
-              <Field label="Make / Brand" error={errs.make}><input className="input" placeholder="Honda" value={f.make} onChange={set('make')} /></Field>
+              <Field label="Make / Brand" error={errs.make}>
+                <select className="input" value={customMake || (f.make && !MOTOR_BRANDS.includes(f.make)) ? 'Other' : f.make}
+                  onChange={(e) => { const v = e.target.value; setCustomMake(v === 'Other'); setF({ ...f, make: v === 'Other' ? '' : v }); }}>
+                  <option value="">Select brand</option>
+                  {MOTOR_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                  <option value="Other">Other (type brand)</option>
+                </select>
+                {(customMake || (f.make && !MOTOR_BRANDS.includes(f.make))) && <input className="input mt-2" placeholder="Enter brand" value={f.make} onChange={set('make')} />}
+              </Field>
               <Field label="Model" error={errs.model}><input className="input" placeholder="Click 125" value={f.model} onChange={set('model')} /></Field>
               <Field label="Color" error={errs.color}><input className="input" placeholder="Red" value={f.color} onChange={set('color')} /></Field>
               <Field label="Year model" error={errs.year}><input className="input" placeholder="2022" maxLength={4} value={f.year} onChange={set('year')} /></Field>

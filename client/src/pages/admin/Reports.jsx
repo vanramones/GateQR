@@ -6,11 +6,20 @@ import { downloadCSV, fmtDate, fmtDateTime, fmtTime } from '../../lib/utils';
 import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.png';
-const REPORTS = { logs: 'Gate Log', vehicles: 'Vehicle Registry', visitors: 'Visitor Passes', users: 'User Directory' };
+const REPORTS = { vehicles: 'Vehicle Registry', logs: 'Vehicle Entry Activity', visitors: 'Visitor Vehicle Pass', users: 'Vehicle Pass User Report' };
 const CATEGORIES = { all: 'All', student: 'Student', faculty: 'Faculty', staff: 'Staff', visitor: 'Visitor' };
 
 const slug = (s) => s.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
 const dayKey = (t) => new Date(t).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+const validity = (l, vById, pById) => {
+  if (l.type === 'vehicle') {
+    const v = vById[l.refId];
+    return v ? `${vehicleStatus(v) === 'expired' ? 'Expired' : v.passEnabled ? 'Valid' : 'Disabled'} (until ${fmtDate(v.validUntil)})` : '—';
+  }
+  const p = pById[l.refId];
+  return p ? `${passStatus(p) === 'expired' ? 'Expired' : passStatus(p) === 'revoked' ? 'Revoked' : 'Valid'} (until ${fmtDateTime(p.validUntil)})` : '—';
+};
 
 export default function Reports() {
   const d = useStats();
@@ -54,8 +63,8 @@ export default function Reports() {
         })
         .filter((x) => inRange(x.ref) && catOk(x.role))
         .sort((a, b) => b.ref - a.ref)
-        .map((x, i) => [i + 1, dayKey(x.ref), x.l.name || x.owner?.name || pById[x.l.refId]?.visitorName, x.role ? (x.role === 'visitor' ? 'Visitor' : ROLES[x.role]) : '—', x.owner?.idNumber || '—', x.l.plate, x.s.inAt ? fmtTime(x.s.inAt) : '—', x.s.outAt ? fmtTime(x.s.outAt) : '—', guard(x.s.guardIn || x.s.guardOut)]);
-      return { head: ['No.', 'Date', 'Name', 'Role', 'ID No.', 'Plate No.', 'Entry', 'Exit', 'Guard on Duty'], rows };
+        .map((x, i) => [i + 1, dayKey(x.ref), x.l.name || x.owner?.name || pById[x.l.refId]?.visitorName, x.role ? (x.role === 'visitor' ? 'Visitor' : ROLES[x.role]) : '—', x.owner?.idNumber || '—', x.l.plate, x.s.inAt ? fmtTime(x.s.inAt) : '—', x.s.outAt ? fmtTime(x.s.outAt) : '—', validity(x.l, vById, pById), guard(x.s.guardIn || x.s.guardOut)]);
+      return { head: ['No.', 'Date', 'Name', 'Role', 'ID No.', 'Plate No.', 'Entry', 'Exit', 'Validity', 'Guard on Duty'], rows };
     }
     if (type === 'visitors') {
       if (category !== 'all' && category !== 'visitor') return { head: ['No.', 'Visitor', 'Plate', 'Purpose', 'Host', 'Issued', 'Valid until', 'Status'], rows: [] };

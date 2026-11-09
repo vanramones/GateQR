@@ -26,4 +26,13 @@
   body { background: #fff; color: #000; }
   .report-header { display: flex !important; border-color: #000 !important; }
   .report-header * { color: #000 !important; }
+  @page { size: landscape; margin: 10mm; }
+  main, main * { color: #000 !important; text-shadow: none !important; }
+  main .card { background: #fff !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
+  main .overflow-x-auto { overflow: visible !important; }
+  main table { width: 100% !important; table-layout: auto; border-collapse: collapse; }
+  main thead { background: #f1f5f9 !important; }
+  main .th, main .td { white-space: normal !important; padding: 4px 6px !important; font-size: 10px !important; border-bottom: 1px solid #cbd5e1; }
+  main .th { font-weight: 700; }
+  main tr { page-break-inside: avoid; }
 }

@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS = {
 
 export const ROLES = { admin: 'Administrator', guard: 'Gate Guard', student: 'Student', faculty: 'Faculty', staff: 'Staff' };
 export const MAX_VEHICLES_PER_USER = 3;
-export const MAX_VEHICLES_BY_ROLE = { faculty: 5 };
+export const MAX_VEHICLES_BY_ROLE = { student: 2, faculty: 5 };
 export const maxVehiclesForRole = (role) => MAX_VEHICLES_BY_ROLE[role] || MAX_VEHICLES_PER_USER;
 export const VEHICLE_TYPES = ['Motorcycle', 'Car', 'Tricycle', 'Van'];
 export const DEPARTMENTS = [
