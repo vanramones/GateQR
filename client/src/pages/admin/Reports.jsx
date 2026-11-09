@@ -84,6 +84,9 @@ export default function Reports() {
   }, [d]);
 
   if (!d) return null;
+  const stats = type === 'logs'
+    ? [[table.rows.length, 'Total records'], [table.rows.filter((r) => r[6] !== '—').length, 'Entries'], [table.rows.filter((r) => r[7] !== '—').length, 'Exits'], [table.rows.filter((r) => String(r[8]).startsWith('Expired')).length, 'Expired passes']]
+    : [[table.rows.length, 'Total records']];
   const catLabel = category === 'all' ? '' : ` - ${CATEGORIES[category]}`;
   const period = from || to ? `${from ? fmtDate(new Date(from)) : 'Start'} to ${to ? fmtDate(new Date(to)) : 'Present'}` : 'All dates';
   const title = `NwSSU GateQR ${REPORTS[type]} Report${catLabel}`;
@@ -91,15 +94,17 @@ export default function Reports() {
 
   return (
     <div>
-      <PageHeader title="Reports" subtitle="Generate, print, and export system reports."
-        action={<div className="no-print flex gap-2">
-          <button className="btn-secondary" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</button>
-          <button className="btn-primary" onClick={() => downloadCSV(filename, [['Northwest Samar State University'], [title], [`Period: ${period}`], [], table.head, ...table.rows])}><Download className="h-4 w-4" />Export CSV</button>
-        </div>} />
+      <div className="no-print">
+        <PageHeader title="Reports" subtitle="Generate, print, and export system reports."
+          action={<div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</button>
+            <button className="btn-primary" onClick={() => downloadCSV(filename, [['Northwest Samar State University'], [title], [`Period: ${period}`], [], table.head, ...table.rows])}><Download className="h-4 w-4" />Export CSV</button>
+          </div>} />
+      </div>
       <div className="no-print mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         {summary.map(([k, v]) => <div key={k} className="card p-4"><div className="text-2xl font-bold text-white">{v}</div><div className="text-xs text-slate-500">{k}</div></div>)}
       </div>
-      <div className="card">
+      <div className="card report-doc">
         <div className="no-print flex flex-wrap items-end gap-3 border-b border-white/5 p-4">
           <div><label className="label">Report type</label><select className="input w-auto" value={type} onChange={(e) => setType(e.target.value)}>{Object.entries(REPORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
           <div><label className="label">Report for</label><select className="input w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>{Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
@@ -111,10 +116,14 @@ export default function Reports() {
           <div className="flex-1 text-center">
             <div className="text-xs uppercase tracking-widest text-slate-400">Republic of the Philippines</div>
             <div className="text-lg font-bold text-white">Northwest Samar State University</div>
-            <div className="font-semibold text-white">{title}</div>
-            <div className="text-xs text-slate-500">Period: {period} &middot; Generated {fmtDateTime(Date.now())} &middot; {table.rows.length} records</div>
+            <div className="report-sub">Vehicle Pass Registration System &middot; Gate Security Office</div>
+            <div className="report-title font-semibold text-white">{title}</div>
+            <div className="text-xs text-slate-500">Period: {period} &middot; Generated {fmtDateTime(Date.now())}</div>
           </div>
           <div className="hidden h-16 w-16 shrink-0 sm:block" />
+        </div>
+        <div className="print-only report-stats">
+          {stats.map(([k, v]) => <div key={k}><b>{v}</b><span>{k}</span></div>)}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -125,6 +134,11 @@ export default function Reports() {
             </tbody>
           </table>
         </div>
+        <div className="print-only report-signature">
+          <div><span>Prepared by:</span><div className="report-sign-line" /><span>Guard / Office Staff on Duty</span></div>
+          <div><span>Noted by:</span><div className="report-sign-line" /><span>Administrator / Security Head</span></div>
+        </div>
+        <div className="print-only report-footer">NwSSU GateQR &middot; {title} &middot; System-generated report &middot; Confidential</div>
       </div>
     </div>
   );
