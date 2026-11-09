@@ -23,6 +23,7 @@ export default function UsersPage() {
     try { setNewCode(await api.createStaffInvite(inviteRole)); load(); } catch (x) { setErr(x.message); }
   };
   const toggle = async (u) => { await api.setUserActive(u.id, !u.active); load(); };
+  const togglePass = async (u) => { try { await api.setUserPassEnabled(u.id, !u.passEnabled); load(); } catch (x) { setErr(x.message); } };
   const changeRole = async (u, newRole) => { try { await api.setUserRole(u.id, newRole); load(); } catch (x) { setErr(x.message); } };
   const copy = (code) => navigator.clipboard?.writeText(code);
 
@@ -59,8 +60,11 @@ export default function UsersPage() {
                   <td className="td">{u.idNumber || '—'}</td>
                   <td className="td">{u.phone || '—'}</td>
                   <td className="td whitespace-nowrap">{fmtDateTime(u.createdAt)}</td>
-                  <td className="td"><Badge tone={u.active ? 'green' : 'red'}>{u.active ? 'active' : 'inactive'}</Badge></td>
-                  <td className="td text-right"><button className="btn-secondary px-3 py-1.5 text-xs" onClick={() => toggle(u)}>{u.active ? 'Deactivate' : 'Activate'}</button></td>
+                  <td className="td"><Badge tone={u.active ? 'green' : 'red'}>{u.active ? 'active' : 'inactive'}</Badge>{!['admin', 'guard'].includes(u.role) && !u.passEnabled && <div className="mt-1"><Badge tone="amber">QR pass disabled</Badge></div>}</td>
+                  <td className="td text-right"><div className="flex justify-end gap-2">
+                    {!['admin', 'guard'].includes(u.role) && <button className="btn-secondary px-3 py-1.5 text-xs" onClick={() => togglePass(u)}>{u.passEnabled ? 'Disable QR pass' : 'Enable QR pass'}</button>}
+                    <button className="btn-secondary px-3 py-1.5 text-xs" onClick={() => toggle(u)}>{u.active ? 'Deactivate' : 'Activate'}</button>
+                  </div></td>
                 </tr>
               ))}
             </tbody>

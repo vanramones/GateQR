@@ -98,6 +98,10 @@ alter table public.vehicles add column if not exists vehicle_side_path text;
 alter table public.vehicles add column if not exists vehicle_back_path text;
 alter table public.vehicles add column if not exists payment_notice_sent_at timestamptz;
 alter table public.vehicles add column if not exists payment_receipt_path text;
+alter table public.vehicles add column if not exists pass_enabled boolean not null default true;
+alter table public.vehicles add column if not exists access_start time;
+alter table public.vehicles add column if not exists access_end time;
+alter table public.profiles add column if not exists pass_enabled boolean not null default true;
 
 create index if not exists vehicles_user_id_idx on public.vehicles (user_id);
 create index if not exists vehicles_plate_idx on public.vehicles (plate);
@@ -259,6 +263,7 @@ begin
      and coalesce(current_setting('gateqr.allow_role_change', true), 'off') <> 'on' then
     if new.role is distinct from old.role
        or new.active is distinct from old.active
+       or new.pass_enabled is distinct from old.pass_enabled
        or new.id_number is distinct from old.id_number
        or new.email is distinct from old.email
        or new.id is distinct from old.id then

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, QrCode, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { Ban, CheckCircle2, Eye, QrCode, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { staffApi as api, vehicleStatus, VEHICLE_TYPES } from '../../lib/db';
 import { Alert, Empty, Field, Modal, PageHeader, VehicleStatus } from '../../components/ui';
 import { VehiclePassModal } from '../../components/QRPass';
 import IdPreview from '../../components/IdPreview';
-import { fmtDate, fmtDateTime } from '../../lib/utils';
+import { fmtDate, fmtDateTime, toLocalInput } from '../../lib/utils';
 
 export default function AllVehicles() {
   const [vs, setVs] = useState([]);
@@ -22,11 +22,13 @@ export default function AllVehicles() {
   const renew = async (v) => { await api.renewVehicle(v.id); load(); };
   const remove = async (v) => { if (confirm(`Permanently delete ${v.plate} from the registry?`)) { await api.deleteVehicle(v.id); setDetail(null); load(); } };
 
-  const startEdit = (v) => setEdit({ ...v });
+  const togglePass = async (v) => { await api.updateVehicle(v.id, { passEnabled: !v.passEnabled }); setDetail((d) => d && d.id === v.id ? { ...d, passEnabled: !v.passEnabled } : d); load(); };
+  const startEdit = (v) => setEdit({ ...v, validUntilInput: toLocalInput(v.validUntil) });
   const saveEdit = async (e) => {
     e.preventDefault();
-    const { id, type, plate, make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks } = edit;
-    await api.updateVehicle(id, { type, plate: plate.trim().toUpperCase(), make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks });
+    const { id, type, plate, make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks, validUntilInput, accessStart, accessEnd } = edit;
+    if (!!accessStart !== !!accessEnd) { alert('Set both a start and end time for the daily pass hours, or leave both empty.'); return; }
+    await api.updateVehicle(id, { type, plate: plate.trim().toUpperCase(), make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks, accessStart, accessEnd, ...(validUntilInput ? { validUntil: new Date(validUntilInput).getTime() } : {}) });
     setEdit(null); setDetail(null); load();
   };
 
@@ -54,6 +56,7 @@ export default function AllVehicles() {
                     <td className="td" onClick={(e) => e.stopPropagation()}><div className="flex justify-end gap-1">
                       <button className="btn-secondary px-2.5 py-1.5" title="View details" onClick={() => setDetail(v)}><Eye className="h-4 w-4" /></button>
                       {vehicleStatus(v) === 'approved' && <button className="btn-secondary px-2.5 py-1.5" title="View QR" onClick={() => setView(v)}><QrCode className="h-4 w-4" /></button>}
+                      {vehicleStatus(v) === 'approved' && <button className={`btn-secondary px-2.5 py-1.5 ${v.passEnabled ? 'text-red-600' : 'text-emerald-500'}`} title={v.passEnabled ? 'Disable QR pass' : 'Enable QR pass'} onClick={() => togglePass(v)}>{v.passEnabled ? <Ban className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}</button>}
                       {vehicleStatus(v) === 'expired' && <button className="btn-secondary px-2.5 py-1.5" title="Renew 12 months" onClick={() => renew(v)}><RefreshCw className="h-4 w-4" /></button>}
                     </div></td>
                   </tr>
@@ -81,13 +84,16 @@ export default function AllVehicles() {
               <div><div className="text-xs text-slate-400">License expiry</div><div className="font-medium">{detail.licenseExpiry}</div></div>
               <div><div className="text-xs text-slate-400">Submitted</div><div className="font-medium">{fmtDateTime(detail.createdAt)}</div></div>
               <div><div className="text-xs text-slate-400">Approved</div><div className="font-medium">{fmtDate(detail.approvedAt)}</div></div>
-              <div><div className="text-xs text-slate-400">Valid until</div><div className="font-medium">{fmtDate(detail.validUntil)}</div></div>
+              <div><div className="text-xs text-slate-400">Valid until</div><div className="font-medium">{fmtDateTime(detail.validUntil)}</div></div>
+              <div><div className="text-xs text-slate-400">Daily pass hours</div><div className="font-medium">{detail.accessStart && detail.accessEnd ? `${detail.accessStart} – ${detail.accessEnd}` : 'Any time'}</div></div>
+              <div><div className="text-xs text-slate-400">QR pass</div><div className="font-medium">{detail.passEnabled ? 'Enabled' : 'Disabled'}</div></div>
             </div>
             <IdPreview frontPath={detail.idFrontPath} backPath={detail.idBackPath} selfiePath={detail.selfiePath} vehiclePhotoPath={detail.vehiclePhotoPath} vehicleFrontPath={detail.vehicleFrontPath} vehicleSidePath={detail.vehicleSidePath} vehicleBackPath={detail.vehicleBackPath} proofPath={detail.proofDocPath} receiptPath={detail.paymentReceiptPath} />
             {detail.remarks && <Alert tone="amber">{detail.remarks}</Alert>}
             <div className="flex flex-wrap justify-end gap-2">
               <button className="btn-danger" onClick={() => remove(detail)}><Trash2 className="h-4 w-4" />Delete record</button>
               {vehicleStatus(detail) === 'expired' && <button className="btn-secondary" onClick={() => renew(detail)}><RefreshCw className="h-4 w-4" />Renew 12 months</button>}
+              {vehicleStatus(detail) === 'approved' && <button className="btn-secondary" onClick={() => togglePass(detail)}>{detail.passEnabled ? <><Ban className="h-4 w-4" />Disable QR pass</> : <><CheckCircle2 className="h-4 w-4" />Enable QR pass</>}</button>}
               {vehicleStatus(detail) === 'approved' && <button className="btn-secondary" onClick={() => setView(detail)}><QrCode className="h-4 w-4" />View QR pass</button>}
               <button className="btn-primary" onClick={() => startEdit(detail)}>Edit details</button>
             </div>
@@ -105,6 +111,11 @@ export default function AllVehicles() {
               <Field label="OR/CR number"><input className="input" value={edit.orcrNo} onChange={(e) => setEdit({ ...edit, orcrNo: e.target.value })} required /></Field>
               <Field label="License number"><input className="input" value={edit.licenseNo} onChange={(e) => setEdit({ ...edit, licenseNo: e.target.value })} required /></Field>
               <Field label="License expiry"><input type="date" className="input" value={edit.licenseExpiry} onChange={(e) => setEdit({ ...edit, licenseExpiry: e.target.value })} required /></Field>
+              <Field label="Pass expires (date & time)"><input type="datetime-local" className="input" value={edit.validUntilInput} onChange={(e) => setEdit({ ...edit, validUntilInput: e.target.value })} /></Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Daily hours from"><input type="time" className="input" value={edit.accessStart} onChange={(e) => setEdit({ ...edit, accessStart: e.target.value })} /></Field>
+                <Field label="to"><input type="time" className="input" value={edit.accessEnd} onChange={(e) => setEdit({ ...edit, accessEnd: e.target.value })} /></Field>
+              </div>
             </div>
             <Field label="Remarks (visible to owner)"><textarea className="input min-h-[80px]" value={edit.remarks || ''} onChange={(e) => setEdit({ ...edit, remarks: e.target.value })} /></Field>
             <div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={() => setEdit(null)}>Cancel</button><button className="btn-primary">Save changes</button></div>

@@ -1,6 +1,7 @@
 export const fmtDate = (t) => (t ? new Date(t).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 export const fmtDateTime = (t) => (t ? new Date(t).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
 export const fmtTime = (t) => new Date(t).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+export const toLocalInput = (t) => (t ? new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
 export const cx = (...c) => c.filter(Boolean).join(' ');
 
 export function downloadCSV(filename, rows) {

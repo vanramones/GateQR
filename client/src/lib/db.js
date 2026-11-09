@@ -40,7 +40,7 @@ function friendlyError(error) {
 // ---------- row <-> app object mappers (DB is snake_case, app uses camelCase) ----------
 const mapProfile = (r) => r && ({
   id: r.id, name: r.name, email: r.email, role: r.role, idNumber: r.id_number || '',
-  department: r.department || '', phone: r.phone || '', active: r.active, createdAt: new Date(r.created_at).getTime(),
+  department: r.department || '', phone: r.phone || '', active: r.active, passEnabled: r.pass_enabled !== false, createdAt: new Date(r.created_at).getTime(),
 });
 const mapVehicle = (r) => r && ({
   id: r.id, userId: r.user_id, type: r.type, plate: r.plate, make: r.make, model: r.model, color: r.color, year: r.year,
@@ -48,6 +48,7 @@ const mapVehicle = (r) => r && ({
   idFrontPath: r.id_front_path, idBackPath: r.id_back_path, selfiePath: r.selfie_path, vehiclePhotoPath: r.vehicle_photo_path,
   vehicleFrontPath: r.vehicle_front_path, vehicleSidePath: r.vehicle_side_path, vehicleBackPath: r.vehicle_back_path,
   proofDocPath: r.proof_doc_path,
+  passEnabled: r.pass_enabled !== false, accessStart: r.access_start ? r.access_start.slice(0, 5) : '', accessEnd: r.access_end ? r.access_end.slice(0, 5) : '',
   paymentNoticeSentAt: r.payment_notice_sent_at ? new Date(r.payment_notice_sent_at).getTime() : null,
   paymentReceiptPath: r.payment_receipt_path,
   status: r.status, remarks: r.remarks || '', createdAt: new Date(r.created_at).getTime(),
@@ -79,6 +80,18 @@ export const passStatus = (p) => (p.status === 'revoked' ? 'revoked' : p.validUn
 // because verify() already normalizes the scanned text with .toUpperCase()
 // then .toLowerCase() before the DB lookup, so casing here has zero effect
 // on correctness.
+export const withinAccessWindow = (start, end, now = new Date()) => {
+  if (!start || !end) return true;
+  const m = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const s = sh * 60 + sm, e = eh * 60 + em;
+  return s <= e ? m >= s && m <= e : m >= s || m <= e;
+};
+const fmtClock = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+};
 export const vehicleCode = (v) => `GATEQR:V:${v.id}`.toUpperCase();
 export const passCode = (p) => `GATEQR:P:${p.id}`.toUpperCase();
 
@@ -184,6 +197,10 @@ function createApi(supabase) {
       const { error } = await supabase.from('profiles').update({ active }).eq('id', id);
       if (error) throw friendlyError(error);
     },
+    async setUserPassEnabled(id, passEnabled) {
+      const { error } = await supabase.from('profiles').update({ pass_enabled: passEnabled }).eq('id', id);
+      if (error) throw friendlyError(error);
+    },
     async setUserRole(id, role) {
       if (!['student', 'faculty', 'staff'].includes(role)) throw new Error('Invalid role.');
       const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
@@ -284,6 +301,9 @@ function createApi(supabase) {
       const map = { type: 'type', plate: 'plate', make: 'make', model: 'model', color: 'color', year: 'year', orcrNo: 'orcr_no', licenseNo: 'license_no', licenseExpiry: 'license_expiry', remarks: 'remarks', status: 'status' };
       for (const [k, col] of Object.entries(map)) if (patch[k] !== undefined) row[col] = k === 'plate' ? patch[k].trim().toUpperCase() : patch[k];
       if (patch.validUntil !== undefined) row.valid_until = patch.validUntil ? new Date(patch.validUntil).toISOString() : null;
+      if (patch.passEnabled !== undefined) row.pass_enabled = patch.passEnabled;
+      if (patch.accessStart !== undefined) row.access_start = patch.accessStart || null;
+      if (patch.accessEnd !== undefined) row.access_end = patch.accessEnd || null;
       const { error } = await supabase.from('vehicles').update(row).eq('id', id);
       if (error) throw friendlyError(error);
     },
@@ -291,9 +311,10 @@ function createApi(supabase) {
       const { error } = await supabase.from('vehicles').delete().eq('id', id);
       if (error) throw friendlyError(error);
     },
-    async reviewVehicle(id, decision, remarks = '', validityMonths = 12) {
+    async reviewVehicle(id, decision, remarks = '', validityMonths = 12, opts = {}) {
+      const until = opts.validUntil ? new Date(opts.validUntil).getTime() : Date.now() + validityMonths * 30 * 86400000;
       const row = decision === 'approved'
-        ? { status: 'approved', approved_at: new Date().toISOString(), valid_until: new Date(Date.now() + validityMonths * 30 * 86400000).toISOString(), remarks: '' }
+        ? { status: 'approved', approved_at: new Date().toISOString(), valid_until: new Date(until).toISOString(), remarks: '', access_start: opts.accessStart || null, access_end: opts.accessEnd || null }
         : { status: 'rejected', remarks, valid_until: null };
       const { error } = await supabase.from('vehicles').update(row).eq('id', id);
       if (error) throw friendlyError(error);
@@ -372,7 +393,12 @@ function createApi(supabase) {
         const owner = await getProfile(vehicle.userId).catch(() => null);
         const st = vehicleStatus(vehicle);
         const base = { code, kind: 'vehicle', vehicle, owner, name: owner?.name, plate: vehicle.plate, refId: vehicle.id };
-        if (st === 'approved') return { ok: true, ...base };
+        if (st === 'approved') {
+          if (owner && owner.passEnabled === false) return { ok: false, ...base, reason: `QR pass is disabled for this ${owner.role || 'account'}.` };
+          if (!vehicle.passEnabled) return { ok: false, ...base, reason: 'QR pass has been disabled by the administrator.' };
+          if (!withinAccessWindow(vehicle.accessStart, vehicle.accessEnd)) return { ok: false, ...base, reason: `Outside allowed pass hours (${fmtClock(vehicle.accessStart)} – ${fmtClock(vehicle.accessEnd)}).` };
+          return { ok: true, ...base };
+        }
         return { ok: false, ...base, reason: { pending: 'Registration is still pending approval.', rejected: 'Registration was rejected.', expired: 'Pass expired.' }[st] };
       }
       const { data: p } = await supabase.from('visitor_passes').select('*').eq('id', m[2].toLowerCase()).maybeSingle();

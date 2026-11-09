@@ -11,11 +11,19 @@ export default function Registrations() {
   const [rej, setRej] = useState(null);
   const [reason, setReason] = useState('');
   const [months, setMonths] = useState(12);
+  const [until, setUntil] = useState('');
+  const [accessStart, setAccessStart] = useState('');
+  const [accessEnd, setAccessEnd] = useState('');
   const [sendingId, setSendingId] = useState(null);
   const [viewer, setViewer] = useState(null);
   const [err, setErr] = useState('');
   const load = () => Promise.all([api.listVehicles(), api.listUsers()]).then(([v, u]) => { setVs(v.filter((x) => vehicleStatus(x) === 'pending')); setUsers(u); });
-  useEffect(() => { load(); api.getSettings().then((s) => setMonths(s.defaultValidityMonths)); }, []);
+  useEffect(() => {
+    load();
+    api.getSettings().then((s) => setMonths(s.defaultValidityMonths));
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   // Notify the owner in-app and by email after a decision. A notification
   // failure must not undo the decision itself, so errors only surface a warning.
@@ -31,11 +39,14 @@ export default function Registrations() {
   };
 
   const approve = async (v) => {
-    if (!v.paymentReceiptPath && !confirm('No payment receipt has been uploaded by the owner yet. Approve this registration anyway?')) return;
+    if (!v.paymentReceiptPath) return;
     setErr('');
-    await api.reviewVehicle(v.id, 'approved', '', months);
+    if ((accessStart && !accessEnd) || (!accessStart && accessEnd)) { setErr('Set both a start and end time for the daily pass hours, or leave both empty.'); return; }
+    const validUntil = until ? new Date(until).getTime() : null;
+    if (validUntil && validUntil <= Date.now()) { setErr('The expiry date/time must be in the future.'); return; }
+    await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd });
     const o = users.find((u) => u.id === v.userId);
-    await notify(v, o, 'approved', '', Date.now() + months * 30 * 86400000);
+    await notify(v, o, 'approved', '', validUntil || Date.now() + months * 30 * 86400000);
     load();
   };
   const reject = async () => {
@@ -64,8 +75,14 @@ export default function Registrations() {
   return (
     <div>
       <PageHeader title="Registration Requests" subtitle="Review and approve vehicle registrations. Approved vehicles receive an active QR pass."
-        action={<div className="flex items-center gap-2 text-sm"><span className="text-slate-500">Pass validity</span>
-          <select className="input w-auto" value={months} onChange={(e) => setMonths(Number(e.target.value))}>{[6, 12, 24].map((m) => <option key={m} value={m}>{m} months</option>)}</select></div>} />
+        action={<div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-slate-500">Pass validity</span>
+          <select className="input w-auto" value={months} onChange={(e) => { setMonths(Number(e.target.value)); setUntil(''); }}>{[6, 12, 24].map((m) => <option key={m} value={m}>{m} months</option>)}</select>
+          <span className="text-slate-500">or expires</span>
+          <input type="datetime-local" className="input w-auto" value={until} onChange={(e) => setUntil(e.target.value)} />
+          <span className="text-slate-500">Daily hours</span>
+          <input type="time" className="input w-auto" value={accessStart} onChange={(e) => setAccessStart(e.target.value)} />
+          <span className="text-slate-500">to</span>
+          <input type="time" className="input w-auto" value={accessEnd} onChange={(e) => setAccessEnd(e.target.value)} /></div>} />
       {err && <div className="mb-4"><Alert>{err}</Alert></div>}
       {!vs.length ? <div className="card"><Empty title="No pending requests" text="New registrations awaiting review will appear here." /></div> : (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -111,9 +128,10 @@ export default function Registrations() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <button className="btn-success flex-1" onClick={() => approve(v)}><Check className="h-4 w-4" />Approve</button>
+                  <button className="btn-success flex-1" disabled={!v.paymentReceiptPath} title={v.paymentReceiptPath ? 'Approve this registration' : 'Approve is enabled once the owner uploads the payment receipt'} onClick={() => approve(v)}><Check className="h-4 w-4" />Approve</button>
                   <button className="btn-secondary flex-1 text-red-600" onClick={() => setRej(v)}><X className="h-4 w-4" />Reject</button>
                 </div>
+                {!v.paymentReceiptPath && <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once the owner uploads the payment receipt.</p>}
               </div>
             );
           })}
