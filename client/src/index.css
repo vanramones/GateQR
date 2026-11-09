@@ -18,8 +18,12 @@
   .td { @apply px-4 py-3 text-sm text-slate-300; }
 }
 
+.report-header { display: none; }
+
 @media print {
   aside, header, .no-print { display: none !important; }
   main { padding: 0 !important; }
   body { background: #fff; color: #000; }
+  .report-header { display: flex !important; border-color: #000 !important; }
+  .report-header * { color: #000 !important; }
 }

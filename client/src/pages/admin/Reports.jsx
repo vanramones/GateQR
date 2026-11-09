@@ -55,7 +55,7 @@ export default function Reports() {
         .filter((x) => inRange(x.ref) && catOk(x.role))
         .sort((a, b) => b.ref - a.ref)
         .map((x, i) => [i + 1, dayKey(x.ref), x.l.name || x.owner?.name || pById[x.l.refId]?.visitorName, x.role ? (x.role === 'visitor' ? 'Visitor' : ROLES[x.role]) : '—', x.owner?.idNumber || '—', x.l.plate, x.s.inAt ? fmtTime(x.s.inAt) : '—', x.s.outAt ? fmtTime(x.s.outAt) : '—', guard(x.s.guardIn || x.s.guardOut)]);
-      return { head: ['No.', 'Date', 'Name', 'Role', 'ID No.', 'Plate No.', 'Time In', 'Time Out', 'Guard on Duty'], rows };
+      return { head: ['No.', 'Date', 'Name', 'Role', 'ID No.', 'Plate No.', 'Entry', 'Exit', 'Guard on Duty'], rows };
     }
     if (type === 'visitors') {
       if (category !== 'all' && category !== 'visitor') return { head: ['No.', 'Visitor', 'Plate', 'Purpose', 'Host', 'Issued', 'Valid until', 'Status'], rows: [] };
