@@ -1,16 +1,27 @@
 import { useMemo, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
-import { vehicleStatus } from '../../lib/db';
+import { vehicleStatus, passStatus, ROLES } from '../../lib/db';
 import { PageHeader } from '../../components/ui';
-import { downloadCSV, fmtDate, fmtDateTime } from '../../lib/utils';
+import { downloadCSV, fmtDate, fmtDateTime, fmtTime } from '../../lib/utils';
 import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.png';
-const REPORTS = { newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
+const REPORTS = { vehicles: 'Vehicle Registry', logs: 'Vehicle Entry Activity', visitors: 'Visitor Vehicle Pass', users: 'Vehicle Pass User Report', newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
 const PASS_FEE = 50;
 const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount'];
-const isPassForm = () => true;
+const isPassForm = (t) => t === 'newpass' || t === 'allpass';
 const CATEGORIES = { all: 'All', student: 'Student', faculty: 'Faculty', staff: 'Staff', visitor: 'Visitor' };
+
+const dayKey = (t) => new Date(t).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+const validity = (l, vById, pById) => {
+  if (l.type === 'vehicle') {
+    const v = vById[l.refId];
+    return v ? `${vehicleStatus(v) === 'expired' ? 'Expired' : v.passEnabled ? 'Valid' : 'Disabled'} (until ${fmtDate(v.validUntil)})` : '—';
+  }
+  const p = pById[l.refId];
+  return p ? `${passStatus(p) === 'expired' ? 'Expired' : passStatus(p) === 'revoked' ? 'Revoked' : 'Valid'} (until ${fmtDateTime(p.validUntil)})` : '—';
+};
 
 const slug = (s) => s.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
 
@@ -29,7 +40,7 @@ export default function Reports() {
     const uname = (id) => user(id)?.name || '—';
     const catOk = (role) => category === 'all' || role === category;
 
-    {
+    if (isPassForm(type)) {
       const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
       const approved = d.vehicles
         .filter((v) => vehicleStatus(v) !== 'pending' && vehicleStatus(v) !== 'rejected' && catOk(user(v.userId)?.role))
@@ -49,6 +60,42 @@ export default function Reports() {
       const rows = vs.map((v, i) => [`No. ${n0 + i}`, uname(v.userId), v.orNumber, `${fmtDate(new Date(v.paidOn))} - ₱${Number(v.amountPaid).toFixed(2)}`]);
       return { form: true, head: PASS_HEAD, rows, vs };
     }
+    if (type === 'vehicles') {
+      return { head: ['No.', 'Plate', 'Type', 'Vehicle', 'Owner', 'Role', 'Status', 'QR Pass', 'Valid until'], rows: d.vehicles.filter((v) => inRange(v.createdAt) && catOk(user(v.userId)?.role)).map((v, i) => [i + 1, v.plate, v.type, `${v.make} ${v.model}`, uname(v.userId), ROLES[user(v.userId)?.role], vehicleStatus(v), v.passEnabled ? 'Enabled' : 'Disabled', fmtDateTime(v.validUntil)]) };
+    }
+    if (type === 'logs') {
+      const vById = Object.fromEntries(d.vehicles.map((v) => [v.id, v]));
+      const pById = Object.fromEntries(d.passes.map((p) => [p.id, p]));
+      const guard = (id) => uname(id);
+      const granted = d.logs.filter((l) => l.result === 'granted').sort((a, b) => a.timestamp - b.timestamp);
+      const open = {};
+      const sessions = [];
+      for (const l of granted) {
+        const key = l.refId || l.plate;
+        if (l.action === 'entry') {
+          const s = { log: l, inAt: l.timestamp, outAt: null, guardIn: l.guardId, guardOut: null };
+          sessions.push(s); open[key] = s;
+        } else if (open[key]) {
+          open[key].outAt = l.timestamp; open[key].guardOut = l.guardId; delete open[key];
+        } else sessions.push({ log: l, inAt: null, outAt: l.timestamp, guardIn: null, guardOut: l.guardId });
+      }
+      const rows = sessions
+        .map((s) => {
+          const l = s.log;
+          const owner = l.type === 'vehicle' ? user(vById[l.refId]?.userId) : null;
+          const role = l.type === 'visitor' ? 'visitor' : owner?.role;
+          return { s, l, owner, role, ref: s.inAt || s.outAt };
+        })
+        .filter((x) => inRange(x.ref) && catOk(x.role))
+        .sort((a, b) => b.ref - a.ref)
+        .map((x, i) => [i + 1, dayKey(x.ref), x.l.name || x.owner?.name || pById[x.l.refId]?.visitorName, x.role ? (x.role === 'visitor' ? 'Visitor' : ROLES[x.role]) : '—', x.owner?.idNumber || '—', x.l.plate, x.s.inAt ? fmtTime(x.s.inAt) : '—', x.s.outAt ? fmtTime(x.s.outAt) : '—', validity(x.l, vById, pById), guard(x.s.guardIn || x.s.guardOut)]);
+      return { head: ['No.', 'Date', 'Name', 'Role', 'ID No.', 'Plate No.', 'Entry', 'Exit', 'Validity', 'Guard on Duty'], rows };
+    }
+    if (type === 'visitors') {
+      if (category !== 'all' && category !== 'visitor') return { head: ['No.', 'Visitor', 'Plate', 'Purpose', 'Host', 'Issued', 'Valid until', 'Status'], rows: [] };
+      return { head: ['No.', 'Visitor', 'Plate', 'Purpose', 'Host', 'Issued', 'Valid until', 'Status'], rows: d.passes.filter((p) => inRange(p.createdAt)).map((p, i) => [i + 1, p.visitorName, p.plate, p.purpose, p.host, fmtDateTime(p.createdAt), fmtDateTime(p.validUntil), passStatus(p)]) };
+    }
+    return { head: ['No.', 'Name', 'Role', 'ID number', 'Department', 'Email', 'Joined'], rows: d.users.filter((u) => inRange(u.createdAt) && catOk(u.role)).map((u, i) => [i + 1, u.name, ROLES[u.role], u.idNumber, u.department, u.email, fmtDate(u.createdAt)]) };
   }, [d, type, category, from, to, startNo]);
 
 
