@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
-import { vehicleStatus } from '../../lib/db';
-import { PageHeader } from '../../components/ui';
+import { vehicleStatus, staffApi as api } from '../../lib/db';
+import { Alert, PageHeader } from '../../components/ui';
 import { downloadCSV, fmtDate, fmtDateTime } from '../../lib/utils';
 import { useStats } from './AdminDashboard';
 
@@ -20,6 +20,8 @@ export default function Reports() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [startNo, setStartNo] = useState(1);
+  const [ov, setOv] = useState({});
+  const [saveErr, setSaveErr] = useState('');
 
   const table = useMemo(() => {
     if (!d) return { head: [], rows: [] };
@@ -38,9 +40,21 @@ export default function Reports() {
         ? approved.filter((x) => (from || to ? inRange(x.at) : x.at >= yearStart))
         : approved;
       const n0 = Number(startNo) || 1;
-      return { form: true, head: PASS_HEAD, rows: picked.map((x, i) => [`No. ${n0 + i}`, uname(x.v.userId), x.v.orNumber || '', x.v.orNumber || x.v.amountPaid != null ? `${fmtDate(x.v.paidOn ? new Date(x.v.paidOn) : x.at)} - ₱${Number(x.v.amountPaid ?? 0).toFixed(2)}` : '']) };
+      const rows = picked.map((x, i) => {
+        const v = { ...x.v, ...ov[x.v.id] };
+        if (v.amountPaid === '') v.amountPaid = null;
+        return [`No. ${n0 + i}`, uname(v.userId), v.orNumber || '', v.paidOn || v.amountPaid != null ? `${fmtDate(v.paidOn ? new Date(v.paidOn) : x.at)} - ${v.amountPaid != null ? `₱${Number(v.amountPaid).toFixed(2)}` : ""}` : ''];
+      });
+      return { form: true, head: PASS_HEAD, rows, vs: picked.map((x) => ({ ...x.v, ...ov[x.v.id] })) };
     }
-  }, [d, type, category, from, to, startNo]);
+  }, [d, type, category, from, to, startNo, ov]);
+
+  const savePay = async (v, patch) => {
+    const next = { ...v, ...patch };
+    setOv((o) => ({ ...o, [v.id]: { ...o[v.id], ...patch } }));
+    setSaveErr('');
+    try { await api.updateVehicle(v.id, { remarks: next.remarks, orNumber: next.orNumber || '', amountPaid: next.amountPaid ?? '', paidOn: next.paidOn || '' }); } catch (e) { setSaveErr(e.message || 'Could not save.'); }
+  };
 
   const summary = useMemo(() => {
     if (!d) return [];
@@ -71,6 +85,8 @@ export default function Reports() {
       <div className="no-print mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         {summary.map(([k, v]) => <div key={k} className="card p-4"><div className="text-2xl font-bold text-white">{v}</div><div className="text-xs text-slate-500">{k}</div></div>)}
       </div>
+      {saveErr && <div className="no-print mb-4"><Alert>{saveErr}</Alert></div>}
+      <p className="no-print mb-3 text-sm text-slate-400">Type the Official Receipt No., date paid, and amount in the table below. They save automatically and appear on the printed form.</p>
       <div className="card report-doc">
         <div className="no-print flex flex-wrap items-end gap-3 border-b border-white/5 p-4">
           <div><label className="label">Report type</label><select className="input w-auto" value={type} onChange={(e) => setType(e.target.value)}>{Object.entries(REPORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
@@ -95,7 +111,23 @@ export default function Reports() {
           <table className="w-full">
             <thead className="bg-white/5"><tr>{table.head.map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-white/5">
-              {table.rows.slice(0, table.form ? 2000 : 300).map((r, i) => <tr key={i} className={table.form ? 'form-row' : ''}>{r.map((c, j) => <td key={j} className="td capitalize-none">{table.form ? c : (c || '—')}</td>)}</tr>)}
+              {table.rows.slice(0, table.form ? 2000 : 300).map((r, i) => {
+                const v = table.vs?.[i];
+                return <tr key={v?.id || i} className={table.form ? 'form-row' : ''}>{r.map((c, j) => (
+                  <td key={j} className="td capitalize-none">
+                    {table.form && v && j === 2 ? (<>
+                      <input className="no-print input w-full py-1 text-sm" placeholder="OR No." defaultValue={v.orNumber} onBlur={(e) => e.target.value.trim() !== v.orNumber && savePay(v, { orNumber: e.target.value.trim() })} />
+                      <span className="print-only">{c}</span>
+                    </>) : table.form && v && j === 3 ? (<>
+                      <div className="no-print flex gap-1">
+                        <input type="date" className="input w-36 py-1 text-sm" defaultValue={v.paidOn} onBlur={(e) => e.target.value !== v.paidOn && savePay(v, { paidOn: e.target.value })} />
+                        <input type="number" min="0" step="0.01" className="input w-24 py-1 text-sm" placeholder="Amount" defaultValue={v.amountPaid ?? ''} onBlur={(e) => e.target.value !== String(v.amountPaid ?? '') && savePay(v, { amountPaid: e.target.value })} />
+                      </div>
+                      <span className="print-only">{c}</span>
+                    </>) : table.form ? c : (c || '—')}
+                  </td>
+                ))}</tr>;
+              })}
               {!table.rows.length && <tr><td colSpan={table.head.length} className="td py-10 text-center text-slate-400">No records for the selected period.</td></tr>}
             </tbody>
           </table>
