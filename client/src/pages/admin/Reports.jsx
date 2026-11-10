@@ -7,6 +7,7 @@ import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.png';
 const REPORTS = { newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
+const PASS_FEE = '₱50.00';
 const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount'];
 const isPassForm = () => true;
 const CATEGORIES = { all: 'All', student: 'Student', faculty: 'Faculty', staff: 'Staff', visitor: 'Visitor' };
@@ -38,7 +39,7 @@ export default function Reports() {
         ? approved.filter((x) => (from || to ? inRange(x.at) : x.at >= yearStart))
         : approved;
       const n0 = Number(startNo) || 1;
-      return { form: true, head: PASS_HEAD, rows: picked.map((x, i) => [`No. ${n0 + i}`, uname(x.v.userId), '', '']) };
+      return { form: true, head: PASS_HEAD, rows: picked.map((x, i) => [`No. ${n0 + i}`, uname(x.v.userId), x.v.orcrNo || '', `${fmtDate(x.at)} - ${PASS_FEE}`]) };
     }
   }, [d, type, category, from, to, startNo]);
 
