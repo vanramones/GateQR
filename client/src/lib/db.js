@@ -329,8 +329,9 @@ function createApi(supabase) {
     async reviewVehicle(id, decision, remarks = '', validityMonths = 12, opts = {}) {
       const until = opts.validUntil ? new Date(opts.validUntil).getTime() : Date.now() + validityMonths * 30 * 86400000;
       const row = decision === 'approved'
-        ? { status: 'approved', approved_at: new Date().toISOString(), valid_until: new Date(until).toISOString(), remarks: encodeRemarks('', opts.orNumber, opts.amountPaid, opts.paidOn), access_start: opts.accessStart || null, access_end: opts.accessEnd || null }
+        ? { status: 'approved', approved_at: new Date().toISOString(), valid_until: new Date(until).toISOString(), remarks: encodeRemarks('', opts.orNumber, opts.amountPaid, opts.paidOn) }
         : { status: 'rejected', remarks, valid_until: null };
+      if (decision === 'approved' && opts.accessStart && opts.accessEnd) { row.access_start = opts.accessStart; row.access_end = opts.accessEnd; }
       const { error } = await supabase.from('vehicles').update(row).eq('id', id);
       if (error) throw friendlyError(error);
     },
