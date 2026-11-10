@@ -9,7 +9,8 @@
 // below (search for "EDIT:") — update them to match NWSSU's real cashier details.
 
 import PDFDocument from 'pdfkit';
-import { brandedEmail, logoAttachment, LOGO_B64 } from './_brand.js';
+import { brandedEmail, logoAttachment } from './_brand.js';
+import { NWSSU_LOGO_B64 } from './_nwssu-logo.js';
 import { mailConfigError, sendMail } from './_mailer.js';
 
 // EDIT: set the actual vehicle pass fee and account code used by the NWSSU Cashier.
@@ -29,28 +30,36 @@ export function buildPdf({ ownerName, plate, vehicle, controlNo }) {
 
     const M = 14, W = 396, CW = W - M * 2;
     const B = 'Helvetica', BB = 'Helvetica-Bold';
+    const NAVY = '#1e2a5a', GREEN = '#1f7a3a', GOLD = '#f59e0b', TINT = '#eef2f8';
+    const fill = (x, y, w, h, c) => doc.save().rect(x, y, w, h).fill(c).restore();
+    const logo = Buffer.from(NWSSU_LOGO_B64, 'base64');
     const line = (x1, y1, x2, y2, w = 0.6) =>
       doc.lineWidth(w).moveTo(x1, y1).lineTo(x2, y2).stroke('#000000');
     const box = (x, y, w, h, lw = 0.9) =>
       doc.lineWidth(lw).rect(x, y, w, h).stroke('#000000');
     const txt = (t, x, y, o = {}) =>
-      doc.font(o.font || B).fontSize(o.size || 7).fillColor('#000000').text(t, x, y, o);
+      doc.font(o.font || B).fontSize(o.size || 7).fillColor(o.color || '#000000').text(t, x, y, o);
 
     // --- Form header line ---
+    // --- Brand bar (navy + gold) ---
+    fill(0, 0, W, 5, NAVY); fill(0, 5, W, 1.5, GOLD);
+
     txt('ACCOUNTABLE FORM No. 51-C', M, 10, { size: 5.5 });
     txt('Revised January, 1992', M, 17, { size: 5.5 });
     txt('(ORIGINAL)', W - M - 42, 12, { size: 6.5, font: BB });
 
     // --- Title band: seal | title | receipt no. ---
     const bandY = 26, bandH = 62;
+    fill(M + 56, bandY, 210, bandH, TINT);
     box(M, bandY, CW, bandH, 1.1);
     line(M + 56, bandY, M + 56, bandY + bandH);
     line(M + 266, bandY, M + 266, bandY + bandH);
-    doc.image(Buffer.from(LOGO_B64, 'base64'), M + 8, bandY + 10, { width: 40 });
-    txt('Official Receipt', M + 56, bandY + 12, { size: 13, font: BB, width: 210, align: 'center' });
-    txt('Republic of the Philippines', M + 56, bandY + 32, { size: 8, width: 210, align: 'center' });
+    doc.image(logo, M + 5, bandY + 6, { fit: [46, 50], align: 'center', valign: 'center' });
+    txt('Official Receipt', M + 56, bandY + 10, { size: 15, font: BB, width: 210, align: 'center', color: NAVY });
+    txt('Republic of the Philippines', M + 56, bandY + 30, { size: 8, width: 210, align: 'center' });
+    txt('NORTHWEST SAMAR STATE UNIVERSITY', M + 56, bandY + 43, { size: 7, font: BB, width: 210, align: 'center', color: GREEN });
     txt('No.', M + 272, bandY + 10, { size: 9 });
-    txt(String(controlNo), M + 272, bandY + 26, { size: 11, font: BB, width: CW - 272 - 24, align: 'right' });
+    txt(String(controlNo), M + 272, bandY + 26, { size: 12, font: BB, color: NAVY, width: CW - 272 - 24, align: 'right' });
     txt('P', W - M - 12, bandY + 10, { size: 10, font: BB });
 
     // --- Date row ---
@@ -77,17 +86,20 @@ export function buildPdf({ ownerName, plate, vehicle, controlNo }) {
     // --- Collection table ---
     ry += 18;
     const C1 = M, C2 = M + 168, C3 = M + 238, C4 = M + CW;
+    fill(M, ry, CW, 18, NAVY);
     box(M, ry, CW, 18);
     line(C2, ry, C2, ry + 18); line(C3, ry, C3, ry + 18);
-    txt('Nature of', C1, ry + 3, { size: 7, width: C2 - C1, align: 'center' });
-    txt('Collection', C1, ry + 10, { size: 7, width: C2 - C1, align: 'center' });
-    txt('Account', C2, ry + 3, { size: 7, width: C3 - C2, align: 'center' });
-    txt('Code', C2, ry + 10, { size: 7, width: C3 - C2, align: 'center' });
-    txt('Amount', C3, ry + 6, { size: 7, width: C4 - C3, align: 'center' });
+    txt('Nature of', C1, ry + 3, { size: 7, color: '#ffffff', font: BB, width: C2 - C1, align: 'center' });
+    txt('Collection', C1, ry + 10, { size: 7, color: '#ffffff', font: BB, width: C2 - C1, align: 'center' });
+    txt('Account', C2, ry + 3, { size: 7, color: '#ffffff', font: BB, width: C3 - C2, align: 'center' });
+    txt('Code', C2, ry + 10, { size: 7, color: '#ffffff', font: BB, width: C3 - C2, align: 'center' });
+    txt('Amount', C3, ry + 6, { size: 7, color: '#ffffff', font: BB, width: C4 - C3, align: 'center' });
 
     // --- Ruled rows (first row carries the fee line) ---
     const ROW_H = 14, ROWS = 10;
     ry += 18;
+    // faint watermark of the university seal behind the collection rows
+    doc.save().opacity(0.07).image(logo, M + CW / 2 - 55, ry + 12, { fit: [110, 110] }).restore();
     box(M, ry, CW, ROW_H * ROWS);
     for (let i = 1; i < ROWS; i++) line(M, ry + i * ROW_H, M + CW, ry + i * ROW_H, 0.4);
     line(C2, ry, C2, ry + ROW_H * ROWS, 0.4);
@@ -100,11 +112,12 @@ export function buildPdf({ ownerName, plate, vehicle, controlNo }) {
 
     // --- TOTAL row ---
     ry += ROW_H * ROWS;
+    fill(M, ry, CW, 18, TINT);
     box(M, ry, CW, 18);
     line(C3, ry, C3, ry + 18);
     txt('TOTAL', C1, ry + 6, { size: 8, font: BB, width: C3 - C1, align: 'center' });
     txt('P', C3 + 4, ry + 6, { size: 8 });
-    txt(FEE_AMOUNT, C3 + 14, ry + 6, { size: 8, font: BB, width: C4 - C3 - 18, align: 'right' });
+    txt(FEE_AMOUNT, C3 + 14, ry + 6, { size: 9, font: BB, color: NAVY, width: C4 - C3 - 18, align: 'right' });
 
     // --- Amount in words ---
     ry += 18;
@@ -146,8 +159,9 @@ export function buildPdf({ ownerName, plate, vehicle, controlNo }) {
       M, ry + 8, { size: 6, width: CW, align: 'center' });
 
     // --- GateQR note (outside the form) ---
+    fill(0, 612 - 8, W, 8, NAVY);
     txt('Generated by the GateQR Vehicle Pass Registration System. Present this order of payment at the NWSSU Cashier\'s Office together with a valid ID.',
-      M, ry + 26, { size: 6, width: CW, align: 'center' }).fillColor('#555555');
+      M, ry + 26, { size: 6, width: CW, align: 'center', color: '#555555' });
 
     doc.end();
   });

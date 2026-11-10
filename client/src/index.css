@@ -29,19 +29,21 @@
 
   main .card { background: #fff !important; box-shadow: none !important; backdrop-filter: none !important; border: 0 !important; }
   main .overflow-x-auto { overflow: visible !important; }
-  .report-screen-only { display: none !important; }
+  .report-republic { font-size: 9px; letter-spacing: 0.08em; }
+  .report-univ { font-size: 16px; font-weight: 800; color: #1e2a5a !important; font-family: Georgia, 'Times New Roman', serif; }
 
-  .report-header { display: flex !important; padding: 0 0 10px !important; border: 0 !important; }
+  .report-header { display: flex !important; align-items: center; gap: 14px; padding: 0 0 10px !important; margin-bottom: 12px; border: 0 !important; border-bottom: 3px solid #1e2a5a !important; box-shadow: 0 4px 0 -1px #f59e0b; }
   .report-header * { color: #000 !important; }
-  .report-header img { height: 56px !important; width: 56px !important; }
+  .report-header .report-univ { color: #1e2a5a !important; }
+  .report-header img { height: 78px !important; width: 78px !important; }
   .report-sub { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
   .report-title { font-size: 14px; font-weight: 700; margin-top: 2px; text-transform: uppercase; text-decoration: underline; }
   .report-period { font-size: 9px; margin-top: 2px; }
 
   main table { width: 100% !important; table-layout: auto; border-collapse: collapse; font-size: 11px; }
-  main thead { background: #fff !important; display: table-header-group; }
+  main thead { background: #e8edf5 !important; display: table-header-group; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   main .th, main .td { white-space: normal !important; padding: 5px 6px !important; font-size: 11px !important; border: 1px solid #000 !important; }
-  main .th { font-weight: 600; text-align: center; text-transform: none; letter-spacing: 0; }
+  main .th { font-weight: 700; color: #1e2a5a !important; text-align: center; text-transform: none; letter-spacing: 0; }
   main tbody tr:nth-child(even) { background: #fff; }
   main tr { page-break-inside: avoid; }
   main .form-row .td { height: 30px; font-size: 12px !important; }

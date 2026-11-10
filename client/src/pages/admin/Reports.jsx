@@ -5,7 +5,7 @@ import { PageHeader } from '../../components/ui';
 import { downloadCSV, fmtDate, fmtDateTime, fmtTime } from '../../lib/utils';
 import { useStats } from './AdminDashboard';
 
-export const LOGO_SRC = '/images/nwssu-logo.png';
+export const LOGO_SRC = '/images/nwssu-logo.jpg';
 const REPORTS = { vehicles: 'Vehicle Registry', logs: 'Vehicle Entry Activity', visitors: 'Visitor Vehicle Pass', users: 'Vehicle Pass User Report', newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
 const PASS_FEE = 50;
 const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount'];
@@ -137,15 +137,15 @@ export default function Reports() {
           {isPassForm(type) && <div><label className="label">Start serial no.</label><input type="number" min="1" className="input w-28" value={startNo} onChange={(e) => setStartNo(e.target.value)} /></div>}
         </div>
         <div className="report-header flex items-center gap-4 border-b border-white/5 px-4 py-4">
-          <img src={LOGO_SRC} alt="NwSSU logo" className="h-16 w-16 shrink-0 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <img src={LOGO_SRC} alt="NwSSU logo" className="h-20 w-20 shrink-0 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="flex-1 text-center">
-            <div className="report-screen-only text-xs uppercase tracking-widest text-slate-400">Republic of the Philippines</div>
-            <div className="report-screen-only text-lg font-bold text-white">Northwest Samar State University</div>
+            <div className="report-republic text-xs uppercase tracking-widest text-slate-400">Republic of the Philippines</div>
+            <div className="report-univ text-lg font-bold text-white">Northwest Samar State University</div>
             <div className="report-sub">Auxiliary Services and Business Affairs Office</div>
             <div className="report-title font-semibold text-white">{title}</div>
             <div className="report-period text-xs text-slate-500">Period: {period} &middot; Generated {fmtDateTime(Date.now())}</div>
           </div>
-          <div className="hidden h-16 w-16 shrink-0 sm:block" />
+          <div className="hidden h-20 w-20 shrink-0 sm:block" />
         </div>
 
         <div className="overflow-x-auto">
