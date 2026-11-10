@@ -71,7 +71,14 @@ export default function Scanner() {
   const [scanTicks, setScanTicks] = useState(0);
 
   const loadRecent = () => api.listLogs().then((l) => setRecent(l.slice(0, 8))).catch(() => {});
-  useEffect(() => { loadRecent(); api.listVehicles().then((v) => setSamples(v.slice(0, 5))); return () => { stop(); }; }, []);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    loadRecent(); api.listVehicles().then((v) => setSamples(v.slice(0, 5)));
+    // Auto-start the camera so the guard can scan right away. If the browser
+    // blocks it (needs a tap), the "Start camera" button still works.
+    const t = setTimeout(() => { start(); }, 300);
+    return () => { clearTimeout(t); stop(); };
+  }, []);
 
   // `fullscreen` is a plain local UI state — it does NOT depend on the browser's
   // real Fullscreen API. iOS Safari does not support requestFullscreen() on a
@@ -247,7 +254,12 @@ export default function Scanner() {
         }),
         disableFlip: false,
       };
-      const onScan = (txt) => check(txt);
+      const onScan = (txt) => {
+        if (busy.current) return;
+        setFlash(true);
+        setTimeout(() => setFlash(false), 700);
+        check(txt);
+      };
       // Not a real error — html5-qrcode calls this on every frame with no
       // code in view. Used only to prove the decode loop is actually running.
       const onScanFailure = () => {
@@ -342,6 +354,13 @@ export default function Scanner() {
               )}
               {cam && (
                 <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
+                  {flash && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-emerald-400/30">
+                      <div className="flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg">
+                        <CheckCircle2 className="h-5 w-5" />QR detected
+                      </div>
+                    </div>
+                  )}
                   {/* Top bar — close / title / fullscreen, matching the
                       mobile scanner layout (X top-left, title centered). */}
                   <div className="pointer-events-auto flex items-center justify-between bg-gradient-to-b from-slate-950/70 to-transparent px-4 pb-6 pt-4">
