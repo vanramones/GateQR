@@ -7,6 +7,7 @@ import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.png';
 const REPORTS = { newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
+const PASS_FEE = 50;
 const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount'];
 const isPassForm = () => true;
 const CATEGORIES = { all: 'All', student: 'Student', faculty: 'Faculty', staff: 'Staff', visitor: 'Visitor' };
@@ -40,12 +41,16 @@ export default function Reports() {
         ? approved.filter((x) => (from || to ? inRange(x.at) : x.at >= yearStart))
         : approved;
       const n0 = Number(startNo) || 1;
-      const rows = picked.map((x, i) => {
+      // Same data as the payment-notice email's receipt: its "No." is the plate,
+      // dated the day the notice was sent, amount = registration fee. Anything
+      // the admin types in overrides these defaults.
+      const eff = (x) => {
         const v = { ...x.v, ...ov[x.v.id] };
-        if (v.amountPaid === '') v.amountPaid = null;
-        return [`No. ${n0 + i}`, uname(v.userId), v.orNumber || '', v.paidOn || v.amountPaid != null ? `${fmtDate(v.paidOn ? new Date(v.paidOn) : x.at)} - ${v.amountPaid != null ? `₱${Number(v.amountPaid).toFixed(2)}` : ""}` : ''];
-      });
-      return { form: true, head: PASS_HEAD, rows, vs: picked.map((x) => ({ ...x.v, ...ov[x.v.id] })) };
+        return { ...v, orNumber: v.orNumber || v.plate, paidOn: v.paidOn || new Date(v.paymentNoticeSentAt || x.at).toISOString().slice(0, 10), amountPaid: v.amountPaid === '' || v.amountPaid == null ? PASS_FEE : v.amountPaid };
+      };
+      const vs = picked.map(eff);
+      const rows = vs.map((v, i) => [`No. ${n0 + i}`, uname(v.userId), v.orNumber, `${fmtDate(new Date(v.paidOn))} - ₱${Number(v.amountPaid).toFixed(2)}`]);
+      return { form: true, head: PASS_HEAD, rows, vs };
     }
   }, [d, type, category, from, to, startNo, ov]);
 
@@ -86,7 +91,7 @@ export default function Reports() {
         {summary.map(([k, v]) => <div key={k} className="card p-4"><div className="text-2xl font-bold text-white">{v}</div><div className="text-xs text-slate-500">{k}</div></div>)}
       </div>
       {saveErr && <div className="no-print mb-4"><Alert>{saveErr}</Alert></div>}
-      <p className="no-print mb-3 text-sm text-slate-400">Type the Official Receipt No., date paid, and amount in the table below. They save automatically and appear on the printed form.</p>
+      <p className="no-print mb-3 text-sm text-slate-400">The Official Receipt No., date and amount follow the payment notice receipt emailed to each user. You can still type over them here; changes save automatically.</p>
       <div className="card report-doc">
         <div className="no-print flex flex-wrap items-end gap-3 border-b border-white/5 p-4">
           <div><label className="label">Report type</label><select className="input w-auto" value={type} onChange={(e) => setType(e.target.value)}>{Object.entries(REPORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
