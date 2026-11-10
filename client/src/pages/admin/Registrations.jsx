@@ -49,7 +49,9 @@ export default function Registrations() {
     if (validUntil && validUntil <= Date.now()) { setErr('The expiry date/time must be in the future.'); return; }
     const p = pay[v.id] || {};
     if (!p.orNumber?.trim() || !p.amountPaid) { setErr(`Enter the Official Receipt No. and amount paid for ${v.plate} (as written on the cashier receipt) before approving.`); return; }
-    await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd, orNumber: p.orNumber, amountPaid: p.amountPaid, paidOn: p.paidOn || today });
+    try {
+      await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd, orNumber: p.orNumber, amountPaid: p.amountPaid, paidOn: p.paidOn || today });
+    } catch (x) { setErr(`Could not approve ${v.plate}: ${x.message}`); return; }
     const o = users.find((u) => u.id === v.userId);
     await notify(v, o, 'approved', '', validUntil || Date.now() + months * 30 * 86400000);
     load();
@@ -57,7 +59,9 @@ export default function Registrations() {
   const reject = async () => {
     setErr('');
     const remarks = reason || 'Does not meet requirements.';
-    await api.reviewVehicle(rej.id, 'rejected', remarks);
+    try {
+      await api.reviewVehicle(rej.id, 'rejected', remarks);
+    } catch (x) { setErr(`Could not reject ${rej.plate}: ${x.message}`); return; }
     const o = users.find((u) => u.id === rej.userId);
     await notify(rej, o, 'rejected', remarks);
     setRej(null); setReason(''); load();
