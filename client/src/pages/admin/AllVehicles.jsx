@@ -26,9 +26,9 @@ export default function AllVehicles() {
   const startEdit = (v) => setEdit({ ...v, validUntilInput: toLocalInput(v.validUntil) });
   const saveEdit = async (e) => {
     e.preventDefault();
-    const { id, type, plate, make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks, validUntilInput, accessStart, accessEnd } = edit;
+    const { id, type, plate, make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks, validUntilInput, accessStart, accessEnd, orNumber, amountPaid, paidOn } = edit;
     if (!!accessStart !== !!accessEnd) { alert('Set both a start and end time for the daily pass hours, or leave both empty.'); return; }
-    await api.updateVehicle(id, { type, plate: plate.trim().toUpperCase(), make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks, accessStart, accessEnd, ...(validUntilInput ? { validUntil: new Date(validUntilInput).getTime() } : {}) });
+    await api.updateVehicle(id, { type, plate: plate.trim().toUpperCase(), make, model, color, year, orcrNo, licenseNo, licenseExpiry, remarks, accessStart, accessEnd, orNumber, amountPaid: amountPaid ?? '', paidOn, ...(validUntilInput ? { validUntil: new Date(validUntilInput).getTime() } : {}) });
     setEdit(null); setDetail(null); load();
   };
 
@@ -109,6 +109,9 @@ export default function AllVehicles() {
               <Field label="Color"><input className="input" value={edit.color} onChange={(e) => setEdit({ ...edit, color: e.target.value })} required /></Field>
               <Field label="Year"><input className="input" value={edit.year} onChange={(e) => setEdit({ ...edit, year: e.target.value })} required /></Field>
               <Field label="OR/CR number"><input className="input" value={edit.orcrNo} onChange={(e) => setEdit({ ...edit, orcrNo: e.target.value })} required /></Field>
+              <Field label="Official Receipt No."><input className="input" value={edit.orNumber || ''} onChange={(e) => setEdit({ ...edit, orNumber: e.target.value })} /></Field>
+              <Field label="Amount paid"><input type="number" min="0" step="0.01" className="input" value={edit.amountPaid ?? ''} onChange={(e) => setEdit({ ...edit, amountPaid: e.target.value })} /></Field>
+              <Field label="Date paid"><input type="date" className="input" value={edit.paidOn || ''} onChange={(e) => setEdit({ ...edit, paidOn: e.target.value })} /></Field>
               <Field label="License number"><input className="input" value={edit.licenseNo} onChange={(e) => setEdit({ ...edit, licenseNo: e.target.value })} required /></Field>
               <Field label="License expiry"><input type="date" className="input" value={edit.licenseExpiry} onChange={(e) => setEdit({ ...edit, licenseExpiry: e.target.value })} required /></Field>
               <Field label="Pass expires (date & time)"><input type="datetime-local" className="input" value={edit.validUntilInput} onChange={(e) => setEdit({ ...edit, validUntilInput: e.target.value })} /></Field>

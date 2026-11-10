@@ -17,6 +17,9 @@ export default function Registrations() {
   const [sendingId, setSendingId] = useState(null);
   const [viewer, setViewer] = useState(null);
   const [err, setErr] = useState('');
+  const [pay, setPay] = useState({});
+  const today = new Date().toISOString().slice(0, 10);
+  const setP = (id, k, val) => setPay((s) => ({ ...s, [id]: { ...s[id], [k]: val } }));
   const load = () => Promise.all([api.listVehicles(), api.listUsers()]).then(([v, u]) => { setVs(v.filter((x) => vehicleStatus(x) === 'pending')); setUsers(u); });
   useEffect(() => {
     load();
@@ -44,7 +47,9 @@ export default function Registrations() {
     if ((accessStart && !accessEnd) || (!accessStart && accessEnd)) { setErr('Set both a start and end time for the daily pass hours, or leave both empty.'); return; }
     const validUntil = until ? new Date(until).getTime() : null;
     if (validUntil && validUntil <= Date.now()) { setErr('The expiry date/time must be in the future.'); return; }
-    await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd });
+    const p = pay[v.id] || {};
+    if (!p.orNumber?.trim() || !p.amountPaid) { setErr(`Enter the Official Receipt No. and amount paid for ${v.plate} (as written on the cashier receipt) before approving.`); return; }
+    await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd, orNumber: p.orNumber, amountPaid: p.amountPaid, paidOn: p.paidOn || today });
     const o = users.find((u) => u.id === v.userId);
     await notify(v, o, 'approved', '', validUntil || Date.now() + months * 30 * 86400000);
     load();
@@ -125,6 +130,12 @@ export default function Registrations() {
                       </button>
                     </div>
                   )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <Field label="Official Receipt No."><input className="input" placeholder="e.g. 9754917" value={pay[v.id]?.orNumber || ''} onChange={(e) => setP(v.id, 'orNumber', e.target.value)} /></Field>
+                  <Field label="Amount paid"><input type="number" min="0" step="0.01" className="input" placeholder="50.00" value={pay[v.id]?.amountPaid || ''} onChange={(e) => setP(v.id, 'amountPaid', e.target.value)} /></Field>
+                  <Field label="Date paid"><input type="date" className="input" value={pay[v.id]?.paidOn || today} onChange={(e) => setP(v.id, 'paidOn', e.target.value)} /></Field>
                 </div>
 
                 <div className="mt-4 flex gap-2">

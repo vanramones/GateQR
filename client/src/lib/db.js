@@ -42,6 +42,19 @@ const mapProfile = (r) => r && ({
   id: r.id, name: r.name, email: r.email, role: r.role, idNumber: r.id_number || '',
   department: r.department || '', phone: r.phone || '', active: r.active, passEnabled: r.pass_enabled !== false, createdAt: new Date(r.created_at).getTime(),
 });
+// Payment details (OR no., amount, date) are stored inside the existing
+// `remarks` text column as a "[PAY]{json}" prefix, so no DB migration is
+// needed. parseRemarks() splits them back out; encodeRemarks() joins them.
+const parseRemarks = (raw) => {
+  const m = String(raw || '').match(/^\[PAY\](\{.*?\})\n?([\s\S]*)$/);
+  if (!m) return { remarks: raw || '', orNumber: '', amountPaid: null, paidOn: '' };
+  try { const p = JSON.parse(m[1]); return { remarks: m[2], orNumber: p.or || '', amountPaid: p.amt ?? null, paidOn: p.on || '' }; } catch { return { remarks: raw || '', orNumber: '', amountPaid: null, paidOn: '' }; }
+};
+const encodeRemarks = (remarks, orNumber, amountPaid, paidOn) => {
+  const amt = amountPaid === '' || amountPaid == null ? null : Number(amountPaid);
+  const or = (orNumber || '').trim();
+  return or || amt != null || paidOn ? `[PAY]${JSON.stringify({ or, amt, on: paidOn || '' })}\n${remarks || ''}` : (remarks || '');
+};
 const mapVehicle = (r) => r && ({
   id: r.id, userId: r.user_id, type: r.type, plate: r.plate, make: r.make, model: r.model, color: r.color, year: r.year,
   orcrNo: r.orcr_no, licenseNo: r.license_no, licenseExpiry: r.license_expiry,
@@ -51,7 +64,8 @@ const mapVehicle = (r) => r && ({
   passEnabled: r.pass_enabled !== false, accessStart: r.access_start ? r.access_start.slice(0, 5) : '', accessEnd: r.access_end ? r.access_end.slice(0, 5) : '',
   paymentNoticeSentAt: r.payment_notice_sent_at ? new Date(r.payment_notice_sent_at).getTime() : null,
   paymentReceiptPath: r.payment_receipt_path,
-  status: r.status, remarks: r.remarks || '', createdAt: new Date(r.created_at).getTime(),
+  ...parseRemarks(r.remarks),
+  status: r.status, createdAt: new Date(r.created_at).getTime(),
   approvedAt: r.approved_at ? new Date(r.approved_at).getTime() : null,
   validUntil: r.valid_until ? new Date(r.valid_until).getTime() : null,
 });
@@ -298,12 +312,13 @@ function createApi(supabase) {
     },
     async updateVehicle(id, patch) {
       const row = {};
-      const map = { type: 'type', plate: 'plate', make: 'make', model: 'model', color: 'color', year: 'year', orcrNo: 'orcr_no', licenseNo: 'license_no', licenseExpiry: 'license_expiry', remarks: 'remarks', status: 'status' };
+      const map = { type: 'type', plate: 'plate', make: 'make', model: 'model', color: 'color', year: 'year', orcrNo: 'orcr_no', licenseNo: 'license_no', licenseExpiry: 'license_expiry', status: 'status' };
       for (const [k, col] of Object.entries(map)) if (patch[k] !== undefined) row[col] = k === 'plate' ? patch[k].trim().toUpperCase() : patch[k];
       if (patch.validUntil !== undefined) row.valid_until = patch.validUntil ? new Date(patch.validUntil).toISOString() : null;
       if (patch.passEnabled !== undefined) row.pass_enabled = patch.passEnabled;
       if (patch.accessStart !== undefined) row.access_start = patch.accessStart || null;
       if (patch.accessEnd !== undefined) row.access_end = patch.accessEnd || null;
+      if (patch.remarks !== undefined) row.remarks = patch.orNumber !== undefined || patch.amountPaid !== undefined || patch.paidOn !== undefined ? encodeRemarks(patch.remarks, patch.orNumber, patch.amountPaid, patch.paidOn) : patch.remarks;
       const { error } = await supabase.from('vehicles').update(row).eq('id', id);
       if (error) throw friendlyError(error);
     },
@@ -314,7 +329,7 @@ function createApi(supabase) {
     async reviewVehicle(id, decision, remarks = '', validityMonths = 12, opts = {}) {
       const until = opts.validUntil ? new Date(opts.validUntil).getTime() : Date.now() + validityMonths * 30 * 86400000;
       const row = decision === 'approved'
-        ? { status: 'approved', approved_at: new Date().toISOString(), valid_until: new Date(until).toISOString(), remarks: '', access_start: opts.accessStart || null, access_end: opts.accessEnd || null }
+        ? { status: 'approved', approved_at: new Date().toISOString(), valid_until: new Date(until).toISOString(), remarks: encodeRemarks('', opts.orNumber, opts.amountPaid, opts.paidOn), access_start: opts.accessStart || null, access_end: opts.accessEnd || null }
         : { status: 'rejected', remarks, valid_until: null };
       const { error } = await supabase.from('vehicles').update(row).eq('id', id);
       if (error) throw friendlyError(error);
