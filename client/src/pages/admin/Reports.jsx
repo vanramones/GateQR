@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 import { vehicleStatus, passStatus, ROLES } from '../../lib/db';
 import { PageHeader } from '../../components/ui';
-import { downloadCSV, fmtDate, fmtDateTime, fmtTime } from '../../lib/utils';
+import { downloadPDF, fmtDate, fmtDateTime, fmtTime } from '../../lib/utils';
 import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.jpg';
@@ -122,7 +122,7 @@ export default function Reports() {
         <PageHeader title="Reports" subtitle="Generate, print, and export system reports."
           action={<div className="flex gap-2">
             <button className="btn-secondary" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</button>
-            <button className="btn-primary" onClick={() => downloadCSV(filename, [['Northwest Samar State University'], [title], [`Period: ${period}`], [], table.head, ...table.rows])}><Download className="h-4 w-4" />Export CSV</button>
+            <button className="btn-primary" onClick={() => downloadPDF(filename.replace(/\.csv$/, '.pdf'), { title, period, head: table.head, rows: table.rows })}><Download className="h-4 w-4" />Export PDF</button>
           </div>} />
       </div>
       <div className="no-print mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
