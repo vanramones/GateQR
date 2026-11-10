@@ -22,9 +22,13 @@ export default function AdminDashboard() {
   const days = [...Array(7)].map((_, i) => {
     const dt = new Date(Date.now() - (6 - i) * 86400000);
     const n = logs.filter((l) => l.result === 'granted' && l.action === 'entry' && new Date(l.timestamp).toDateString() === dt.toDateString()).length;
-    return { label: dt.toLocaleDateString('en-PH', { weekday: 'short' }), n };
+    return { label: dt.toLocaleDateString('en-PH', { weekday: 'short' }), date: dt.toLocaleDateString('en-PH', { weekday: 'long', month: 'short', day: 'numeric' }), today: i === 6, n };
   });
-  const max = Math.max(1, ...days.map((x) => x.n));
+  const total = days.reduce((s, x) => s + x.n, 0);
+  const avg = Math.round(total / 7);
+  const peak = days.reduce((a, x) => (x.n > a.n ? x : a), days[0]);
+  const top = Math.max(4, Math.ceil(peak.n / 4) * 4);
+  const ticks = [top, (top * 3) / 4, top / 2, top / 4, 0];
 
   return (
     <div>
@@ -56,15 +60,38 @@ export default function AdminDashboard() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-5">
         <div className="card p-5 lg:col-span-3">
-          <h2 className="font-semibold text-white">Campus entries - last 7 days</h2>
-          <div className="mt-6 flex h-52 items-end gap-3">
-            {days.map((x, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div className="text-xs font-semibold text-slate-300">{x.n}</div>
-                <div className="flex w-full flex-1 items-end"><div className="w-full rounded-t-md bg-gradient-to-t from-brand-600 to-brand-400" style={{ height: `${(x.n / max) * 100}%`, minHeight: 4 }} /></div>
-                <div className="text-xs text-slate-500">{x.label}</div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-white">Campus entries - last 7 days</h2>
+              <p className="text-xs text-slate-500">Granted entries per day</p>
+            </div>
+            <div className="flex gap-2 text-center">
+              {[['Total', total], ['Daily avg', avg], ['Peak', peak.n]].map(([k, v]) => (
+                <div key={k} className="rounded-lg border border-white/5 bg-white/5 px-3 py-1.5"><div className="text-base font-bold text-white">{v}</div><div className="text-[10px] uppercase tracking-wide text-slate-500">{k}</div></div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-6 flex gap-2">
+            <div className="flex h-44 flex-col justify-between pb-0 text-right text-[10px] text-slate-500">
+              {ticks.map((t) => <span key={t} className="leading-none">{t}</span>)}
+            </div>
+            <div className="relative flex-1">
+              <div className="pointer-events-none absolute inset-x-0 top-0 flex h-44 flex-col justify-between">
+                {ticks.map((t) => <div key={t} className="border-t border-dashed border-white/10" />)}
               </div>
-            ))}
+              <div className="relative flex h-44 items-end gap-3">
+                {days.map((x, i) => (
+                  <div key={i} className="group relative flex h-full flex-1 items-end" title={`${x.date}: ${x.n} ${x.n === 1 ? 'entry' : 'entries'}`}>
+                    <div className={cx('w-full rounded-t-md transition-all duration-500 group-hover:brightness-125', x.today ? 'bg-gradient-to-t from-brand-600 to-brand-400 shadow-[0_0_16px_rgba(16,185,129,0.45)]' : 'bg-gradient-to-t from-brand-600/60 to-brand-400/70')} style={{ height: x.n ? `${(x.n / top) * 100}%` : 3, minHeight: 3 }}>
+                      <div className="-translate-y-5 text-center text-xs font-semibold text-slate-200">{x.n}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-3">
+                {days.map((x, i) => <div key={i} className={cx('flex-1 text-center text-xs', x.today ? 'font-semibold text-brand-400' : 'text-slate-500')}>{x.today ? 'Today' : x.label}</div>)}
+              </div>
+            </div>
           </div>
         </div>
         <div className="card lg:col-span-2">
