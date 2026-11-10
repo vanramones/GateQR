@@ -97,6 +97,8 @@ export default function Registrations() {
         <div className="grid gap-4 lg:grid-cols-2">
           {vs.map((v) => {
             const o = users.find((u) => u.id === v.userId);
+            const p = pay[v.id] || {};
+            const canApprove = !!v.paymentReceiptPath && !!p.orNumber?.trim() && !!p.amountPaid;
             return (
               <div key={v.id} className="card p-5">
                 <div className="flex items-start justify-between">
@@ -143,10 +145,14 @@ export default function Registrations() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <button className="btn-success flex-1" disabled={!v.paymentReceiptPath} title={v.paymentReceiptPath ? 'Approve this registration' : 'Approve is enabled once the owner uploads the payment receipt'} onClick={() => approve(v)}><Check className="h-4 w-4" />Approve</button>
+                  <button className="btn-success flex-1" disabled={!canApprove} title={canApprove ? 'Approve this registration' : !v.paymentReceiptPath ? 'Approve is enabled once the owner uploads the payment receipt' : 'Enter the Official Receipt No. and amount paid before approving'} onClick={() => approve(v)}><Check className="h-4 w-4" />Approve</button>
                   <button className="btn-secondary flex-1 text-red-600" onClick={() => setRej(v)}><X className="h-4 w-4" />Reject</button>
                 </div>
-                {!v.paymentReceiptPath && <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once the owner uploads the payment receipt.</p>}
+                {!v.paymentReceiptPath ? (
+                  <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once the owner uploads the payment receipt.</p>
+                ) : !canApprove && (
+                  <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once you enter the Official Receipt No. and amount paid.</p>
+                )}
               </div>
             );
           })}
