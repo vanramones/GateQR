@@ -247,7 +247,7 @@ export default function Scanner() {
       // of other constraint changes tried alongside it; this form stays
       // within the viewfinder by construction.)
       const config = {
-        fps: 10,
+        fps: 25,
         qrbox: (vw, vh) => ({
           width: Math.max(50, Math.floor(Math.min(vw * 0.92, 560))),
           height: Math.max(50, Math.floor(Math.min(vh * 0.62, 420))),

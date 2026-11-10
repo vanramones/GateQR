@@ -45,6 +45,14 @@
   main tbody tr:nth-child(even) { background: #f8fafc; }
   main tr { page-break-inside: avoid; }
 
+  main .form-row:nth-child(even) { background: #fff; }
+  main .form-row .td { height: 30px; border: 1px solid #000 !important; font-size: 12px !important; }
+  main .form-row .td:nth-child(1) { width: 14%; font-weight: 600; }
+  main .form-row .td:nth-child(2) { width: 34%; }
+  main .form-row .td:nth-child(5) { width: 22%; }
+  main table:has(.form-row) .th { border: 1px solid #000 !important; text-align: center; background: #fff; font-size: 10px !important; }
+  main table:has(.form-row) thead { background: #fff !important; }
+
   .print-only { display: flex !important; }
   .report-sub { font-size: 11px; font-style: italic; }
   .report-title { font-size: 15px; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }

@@ -6,7 +6,9 @@ import { downloadCSV, fmtDate, fmtDateTime, fmtTime } from '../../lib/utils';
 import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.png';
-const REPORTS = { vehicles: 'Vehicle Registry', logs: 'Vehicle Entry Activity', visitors: 'Visitor Vehicle Pass', users: 'Vehicle Pass User Report' };
+const REPORTS = { vehicles: 'Vehicle Registry', logs: 'Vehicle Entry Activity', visitors: 'Visitor Vehicle Pass', users: 'Vehicle Pass User Report', newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
+const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount', 'Signature'];
+const isPassForm = (t) => t === 'newpass' || t === 'allpass';
 const CATEGORIES = { all: 'All', student: 'Student', faculty: 'Faculty', staff: 'Staff', visitor: 'Visitor' };
 
 const slug = (s) => s.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '');
@@ -27,6 +29,7 @@ export default function Reports() {
   const [category, setCategory] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [startNo, setStartNo] = useState(1);
 
   const table = useMemo(() => {
     if (!d) return { head: [], rows: [] };
@@ -35,6 +38,18 @@ export default function Reports() {
     const uname = (id) => user(id)?.name || '—';
     const catOk = (role) => category === 'all' || role === category;
 
+    if (isPassForm(type)) {
+      const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+      const approved = d.vehicles
+        .filter((v) => vehicleStatus(v) !== 'pending' && vehicleStatus(v) !== 'rejected' && catOk(user(v.userId)?.role))
+        .map((v) => ({ v, at: v.approvedAt || v.createdAt }))
+        .sort((a, b) => a.at - b.at);
+      const picked = type === 'newpass'
+        ? approved.filter((x) => (from || to ? inRange(x.at) : x.at >= yearStart))
+        : approved;
+      const n0 = Number(startNo) || 1;
+      return { form: true, head: PASS_HEAD, rows: picked.map((x, i) => [`No. ${n0 + i}`, uname(x.v.userId), '', '', '']) };
+    }
     if (type === 'vehicles') {
       return { head: ['No.', 'Plate', 'Type', 'Vehicle', 'Owner', 'Role', 'Status', 'QR Pass', 'Valid until'], rows: d.vehicles.filter((v) => inRange(v.createdAt) && catOk(user(v.userId)?.role)).map((v, i) => [i + 1, v.plate, v.type, `${v.make} ${v.model}`, uname(v.userId), ROLES[user(v.userId)?.role], vehicleStatus(v), v.passEnabled ? 'Enabled' : 'Disabled', fmtDateTime(v.validUntil)]) };
     }
@@ -71,7 +86,7 @@ export default function Reports() {
       return { head: ['No.', 'Visitor', 'Plate', 'Purpose', 'Host', 'Issued', 'Valid until', 'Status'], rows: d.passes.filter((p) => inRange(p.createdAt)).map((p, i) => [i + 1, p.visitorName, p.plate, p.purpose, p.host, fmtDateTime(p.createdAt), fmtDateTime(p.validUntil), passStatus(p)]) };
     }
     return { head: ['No.', 'Name', 'Role', 'ID number', 'Department', 'Email', 'Joined'], rows: d.users.filter((u) => inRange(u.createdAt) && catOk(u.role)).map((u, i) => [i + 1, u.name, ROLES[u.role], u.idNumber, u.department, u.email, fmtDate(u.createdAt)]) };
-  }, [d, type, category, from, to]);
+  }, [d, type, category, from, to, startNo]);
 
   const summary = useMemo(() => {
     if (!d) return [];
@@ -89,7 +104,8 @@ export default function Reports() {
     : [[table.rows.length, 'Total records']];
   const catLabel = category === 'all' ? '' : ` - ${CATEGORIES[category]}`;
   const period = from || to ? `${from ? fmtDate(new Date(from)) : 'Start'} to ${to ? fmtDate(new Date(to)) : 'Present'}` : 'All dates';
-  const title = `NwSSU GateQR ${REPORTS[type]} Report${catLabel}`;
+  const year = from ? new Date(from).getFullYear() : new Date().getFullYear();
+  const title = isPassForm(type) ? `${REPORTS[type]} ${year}${catLabel}` : `NwSSU GateQR ${REPORTS[type]} Report${catLabel}`;
   const filename = `NwSSU_GateQR_${slug(REPORTS[type])}_Report${category === 'all' ? '' : `_${CATEGORIES[category]}`}_${from || 'start'}_to_${to || new Date().toISOString().slice(0, 10)}.csv`;
 
   return (
@@ -110,26 +126,27 @@ export default function Reports() {
           <div><label className="label">Report for</label><select className="input w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>{Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
           <div><label className="label">From</label><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div><label className="label">To</label><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+          {isPassForm(type) && <div><label className="label">Start serial no.</label><input type="number" min="1" className="input w-28" value={startNo} onChange={(e) => setStartNo(e.target.value)} /></div>}
         </div>
         <div className="report-header flex items-center gap-4 border-b border-white/5 px-4 py-4">
           <img src={LOGO_SRC} alt="NwSSU logo" className="h-16 w-16 shrink-0 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="flex-1 text-center">
             <div className="text-xs uppercase tracking-widest text-slate-400">Republic of the Philippines</div>
             <div className="text-lg font-bold text-white">Northwest Samar State University</div>
-            <div className="report-sub">Vehicle Pass Registration System &middot; Gate Security Office</div>
+            <div className="report-sub">{isPassForm(type) ? 'Auxiliary Services and Business Affairs Office' : 'Vehicle Pass Registration System · Gate Security Office'}</div>
             <div className="report-title font-semibold text-white">{title}</div>
             <div className="text-xs text-slate-500">Period: {period} &middot; Generated {fmtDateTime(Date.now())}</div>
           </div>
           <div className="hidden h-16 w-16 shrink-0 sm:block" />
         </div>
-        <div className="print-only report-stats">
+        {!table.form && <div className="print-only report-stats">
           {stats.map(([k, v]) => <div key={k}><b>{v}</b><span>{k}</span></div>)}
-        </div>
+        </div>}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-white/5"><tr>{table.head.map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-white/5">
-              {table.rows.slice(0, 300).map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className="td capitalize-none">{c || '—'}</td>)}</tr>)}
+              {table.rows.slice(0, table.form ? 2000 : 300).map((r, i) => <tr key={i} className={table.form ? 'form-row' : ''}>{r.map((c, j) => <td key={j} className="td capitalize-none">{table.form ? c : (c || '—')}</td>)}</tr>)}
               {!table.rows.length && <tr><td colSpan={table.head.length} className="td py-10 text-center text-slate-400">No records for the selected period.</td></tr>}
             </tbody>
           </table>
