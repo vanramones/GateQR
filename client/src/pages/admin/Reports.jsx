@@ -7,7 +7,7 @@ import { useStats } from './AdminDashboard';
 
 export const LOGO_SRC = '/images/nwssu-logo.png';
 const REPORTS = { vehicles: 'Vehicle Registry', logs: 'Vehicle Entry Activity', visitors: 'Visitor Vehicle Pass', users: 'Vehicle Pass User Report', newpass: 'New Vehicle Pass', allpass: 'All Registered Vehicle Pass' };
-const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount', 'Signature'];
+const PASS_HEAD = ['Serial No. of Vehicle Pass', 'Name of Vehicle User', 'Official Receipt No.', 'Date & Amount'];
 const isPassForm = (t) => t === 'newpass' || t === 'allpass';
 const CATEGORIES = { all: 'All', student: 'Student', faculty: 'Faculty', staff: 'Staff', visitor: 'Visitor' };
 
@@ -48,7 +48,7 @@ export default function Reports() {
         ? approved.filter((x) => (from || to ? inRange(x.at) : x.at >= yearStart))
         : approved;
       const n0 = Number(startNo) || 1;
-      return { form: true, head: PASS_HEAD, rows: picked.map((x, i) => [`No. ${n0 + i}`, uname(x.v.userId), '', '', '']) };
+      return { form: true, head: PASS_HEAD, rows: picked.map((x, i) => [`No. ${n0 + i}`, uname(x.v.userId), '', '']) };
     }
     if (type === 'vehicles') {
       return { head: ['No.', 'Plate', 'Type', 'Vehicle', 'Owner', 'Role', 'Status', 'QR Pass', 'Valid until'], rows: d.vehicles.filter((v) => inRange(v.createdAt) && catOk(user(v.userId)?.role)).map((v, i) => [i + 1, v.plate, v.type, `${v.make} ${v.model}`, uname(v.userId), ROLES[user(v.userId)?.role], vehicleStatus(v), v.passEnabled ? 'Enabled' : 'Disabled', fmtDateTime(v.validUntil)]) };
@@ -99,9 +99,6 @@ export default function Reports() {
   }, [d]);
 
   if (!d) return null;
-  const stats = type === 'logs'
-    ? [[table.rows.length, 'Total records'], [table.rows.filter((r) => r[6] !== '—').length, 'Entries'], [table.rows.filter((r) => r[7] !== '—').length, 'Exits'], [table.rows.filter((r) => String(r[8]).startsWith('Expired')).length, 'Expired passes']]
-    : [[table.rows.length, 'Total records']];
   const catLabel = category === 'all' ? '' : ` - ${CATEGORIES[category]}`;
   const period = from || to ? `${from ? fmtDate(new Date(from)) : 'Start'} to ${to ? fmtDate(new Date(to)) : 'Present'}` : 'All dates';
   const year = from ? new Date(from).getFullYear() : new Date().getFullYear();
@@ -131,17 +128,15 @@ export default function Reports() {
         <div className="report-header flex items-center gap-4 border-b border-white/5 px-4 py-4">
           <img src={LOGO_SRC} alt="NwSSU logo" className="h-16 w-16 shrink-0 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="flex-1 text-center">
-            <div className="text-xs uppercase tracking-widest text-slate-400">Republic of the Philippines</div>
-            <div className="text-lg font-bold text-white">Northwest Samar State University</div>
-            <div className="report-sub">{isPassForm(type) ? 'Auxiliary Services and Business Affairs Office' : 'Vehicle Pass Registration System · Gate Security Office'}</div>
+            <div className="report-screen-only text-xs uppercase tracking-widest text-slate-400">Republic of the Philippines</div>
+            <div className="report-screen-only text-lg font-bold text-white">Northwest Samar State University</div>
+            <div className="report-sub">Auxiliary Services and Business Affairs Office</div>
             <div className="report-title font-semibold text-white">{title}</div>
-            <div className="text-xs text-slate-500">Period: {period} &middot; Generated {fmtDateTime(Date.now())}</div>
+            <div className="report-period text-xs text-slate-500">Period: {period} &middot; Generated {fmtDateTime(Date.now())}</div>
           </div>
           <div className="hidden h-16 w-16 shrink-0 sm:block" />
         </div>
-        {!table.form && <div className="print-only report-stats">
-          {stats.map(([k, v]) => <div key={k}><b>{v}</b><span>{k}</span></div>)}
-        </div>}
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-white/5"><tr>{table.head.map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
@@ -151,11 +146,7 @@ export default function Reports() {
             </tbody>
           </table>
         </div>
-        <div className="print-only report-signature">
-          <div><span>Prepared by:</span><div className="report-sign-line" /><span>Guard / Office Staff on Duty</span></div>
-          <div><span>Noted by:</span><div className="report-sign-line" /><span>Administrator / Security Head</span></div>
-        </div>
-        <div className="print-only report-footer">NwSSU GateQR &middot; {title} &middot; System-generated report &middot; Confidential</div>
+
       </div>
     </div>
   );
