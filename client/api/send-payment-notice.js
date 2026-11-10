@@ -58,7 +58,7 @@ export function buildPdf({ ownerName, plate, vehicle, controlNo }) {
     box(M, ry, CW, 20);
     txt('Date', M + 268, ry + 7, { size: 7 });
     txt(new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
-      M + 292, ry + 6, { size: 9, width: CW - 294, align: 'right' });
+      M + 290, ry + 7, { size: 8, width: CW - 292, align: 'right', lineBreak: false });
 
     // --- Agency / Fund row ---
     ry += 20;

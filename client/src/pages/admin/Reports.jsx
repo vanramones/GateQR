@@ -40,11 +40,10 @@ export default function Reports() {
         : approved;
       const n0 = Number(startNo) || 1;
       // Same data as the payment-notice email's receipt: its "No." is the plate,
-      // dated the day the notice was sent, amount = registration fee. Any OR
-      // number saved on the vehicle takes priority.
+      // dated the day the notice was sent, amount = registration fee..
       const eff = (x) => {
         const v = x.v;
-        return { ...v, orNumber: v.orNumber || v.plate, paidOn: v.paidOn || new Date(v.paymentNoticeSentAt || x.at).toISOString().slice(0, 10), amountPaid: v.amountPaid === '' || v.amountPaid == null ? PASS_FEE : v.amountPaid };
+        return { ...v, orNumber: v.plate, paidOn: new Date(v.paymentNoticeSentAt || x.at).toISOString().slice(0, 10), amountPaid: PASS_FEE };
       };
       const vs = picked.map(eff);
       const rows = vs.map((v, i) => [`No. ${n0 + i}`, uname(v.userId), v.orNumber, `${fmtDate(new Date(v.paidOn))} - ₱${Number(v.amountPaid).toFixed(2)}`]);
