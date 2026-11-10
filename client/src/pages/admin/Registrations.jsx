@@ -5,6 +5,11 @@ import { Alert, DocViewer, Empty, Field, Modal, PageHeader, Spinner } from '../.
 import IdPreview from '../../components/IdPreview';
 import { fmtDateTime } from '../../lib/utils';
 
+// Registration fee is fixed and the receipt number is just the plate (same
+// convention used by the printed pass reports), so the admin never has to
+// retype these by hand - they're derived automatically on approval.
+const PASS_FEE = 50;
+
 export default function Registrations() {
   const [vs, setVs] = useState([]);
   const [users, setUsers] = useState([]);
@@ -17,9 +22,6 @@ export default function Registrations() {
   const [sendingId, setSendingId] = useState(null);
   const [viewer, setViewer] = useState(null);
   const [err, setErr] = useState('');
-  const [pay, setPay] = useState({});
-  const today = new Date().toISOString().slice(0, 10);
-  const setP = (id, k, val) => setPay((s) => ({ ...s, [id]: { ...s[id], [k]: val } }));
   const load = () => Promise.all([api.listVehicles(), api.listUsers()]).then(([v, u]) => { setVs(v.filter((x) => vehicleStatus(x) === 'pending')); setUsers(u); });
   useEffect(() => {
     load();
@@ -47,10 +49,9 @@ export default function Registrations() {
     if ((accessStart && !accessEnd) || (!accessStart && accessEnd)) { setErr('Set both a start and end time for the daily pass hours, or leave both empty.'); return; }
     const validUntil = until ? new Date(until).getTime() : null;
     if (validUntil && validUntil <= Date.now()) { setErr('The expiry date/time must be in the future.'); return; }
-    const p = pay[v.id] || {};
-    if (!p.orNumber?.trim() || !p.amountPaid) { setErr(`Enter the Official Receipt No. and amount paid for ${v.plate} (as written on the cashier receipt) before approving.`); return; }
+    const paidOn = new Date(v.paymentNoticeSentAt || Date.now()).toISOString().slice(0, 10);
     try {
-      await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd, orNumber: p.orNumber, amountPaid: p.amountPaid, paidOn: p.paidOn || today });
+      await api.reviewVehicle(v.id, 'approved', '', months, { validUntil, accessStart, accessEnd, orNumber: v.plate, amountPaid: PASS_FEE, paidOn });
     } catch (x) { setErr(`Could not approve ${v.plate}: ${x.message}`); return; }
     const o = users.find((u) => u.id === v.userId);
     await notify(v, o, 'approved', '', validUntil || Date.now() + months * 30 * 86400000);
@@ -97,8 +98,6 @@ export default function Registrations() {
         <div className="grid gap-4 lg:grid-cols-2">
           {vs.map((v) => {
             const o = users.find((u) => u.id === v.userId);
-            const p = pay[v.id] || {};
-            const canApprove = !!v.paymentReceiptPath && !!p.orNumber?.trim() && !!p.amountPaid;
             return (
               <div key={v.id} className="card p-5">
                 <div className="flex items-start justify-between">
@@ -138,21 +137,11 @@ export default function Registrations() {
                   )}
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Field label="Official Receipt No."><input className="input" placeholder="e.g. 9754917" value={pay[v.id]?.orNumber || ''} onChange={(e) => setP(v.id, 'orNumber', e.target.value)} /></Field>
-                  <Field label="Amount paid"><input type="number" min="0" step="0.01" className="input" placeholder="50.00" value={pay[v.id]?.amountPaid || ''} onChange={(e) => setP(v.id, 'amountPaid', e.target.value)} /></Field>
-                  <Field label="Date paid"><input type="date" className="input" value={pay[v.id]?.paidOn || today} onChange={(e) => setP(v.id, 'paidOn', e.target.value)} /></Field>
-                </div>
-
                 <div className="mt-4 flex gap-2">
-                  <button className="btn-success flex-1" disabled={!canApprove} title={canApprove ? 'Approve this registration' : !v.paymentReceiptPath ? 'Approve is enabled once the owner uploads the payment receipt' : 'Enter the Official Receipt No. and amount paid before approving'} onClick={() => approve(v)}><Check className="h-4 w-4" />Approve</button>
+                  <button className="btn-success flex-1" disabled={!v.paymentReceiptPath} title={v.paymentReceiptPath ? 'Approve this registration' : 'Approve is enabled once the owner uploads the payment receipt'} onClick={() => approve(v)}><Check className="h-4 w-4" />Approve</button>
                   <button className="btn-secondary flex-1 text-red-600" onClick={() => setRej(v)}><X className="h-4 w-4" />Reject</button>
                 </div>
-                {!v.paymentReceiptPath ? (
-                  <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once the owner uploads the payment receipt.</p>
-                ) : !canApprove && (
-                  <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once you enter the Official Receipt No. and amount paid.</p>
-                )}
+                {!v.paymentReceiptPath && <p className="mt-2 text-center text-xs text-slate-500">Approve is enabled once the owner uploads the payment receipt.</p>}
               </div>
             );
           })}
